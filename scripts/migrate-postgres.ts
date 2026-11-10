@@ -1,0 +1,3 @@
+import pg from 'pg';import {readFileSync} from 'node:fs';import {postgresConfig} from './pg-config.ts';
+const c=new pg.Client(postgresConfig(process.env));
+try{await c.connect();await c.query('BEGIN');await c.query("SET LOCAL lock_timeout='5s'");await c.query('SELECT pg_advisory_xact_lock(8257341)');for(const path of ['postgres/001_auth.sql','postgres/002_profile.sql'])await c.query(readFileSync(path,'utf8'));await c.query('ALTER TABLE bdd_clap.utilisateurs ALTER COLUMN email SET NOT NULL');await c.query('COMMIT');console.log('PostgreSQL auth schema up to date.');}catch(e){await c.query('ROLLBACK').catch(()=>{});throw e;}finally{await c.end();}

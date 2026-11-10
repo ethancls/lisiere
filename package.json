@@ -1,0 +1,48 @@
+{
+  "name": "boites-a-livres",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#lib": "./src/lib/index.js",
+    "#lib/*": "./src/lib/*"
+  },
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "prepare": "svelte-kit sync || echo ''",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "db:migrate": "node --env-file=.env scripts/migrate-postgres.ts",
+    "test:auth": "node --env-file=.env tests/postgres-integration.mjs",
+    "test:settings": "node --env-file=.env tests/settings-integration.mjs"
+  },
+  "devDependencies": {
+    "@skeletonlabs/skeleton": "^5.0.4",
+    "@skeletonlabs/skeleton-svelte": "^5.0.4",
+    "@sveltejs/adapter-node": "^6.0.0",
+    "@sveltejs/kit": "^3.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/node": "^26",
+    "@types/pg": "^8.23.1",
+    "auth": "^1.6.24",
+    "better-auth": "^1.6.24",
+    "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.6.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.0"
+  },
+  "dependencies": {
+    "bits-ui": "^2.20.6",
+    "maplibre-gl": "^6.17.0",
+    "pg": "^8.23.1",
+    "phosphor-svelte": "^3.1.1",
+    "resend": "^6.38.0",
+    "zod": "^4.6.7"
+  }
+}

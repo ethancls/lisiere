@@ -1,0 +1,15 @@
+/* Skeleton placeholders with Tailwind utilities, without Preflight resets. */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities) source(none);
+@import '@skeletonlabs/skeleton';
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@source './lib/components';
+@source './routes/settings';
+
+/* Keep Skeleton tied to the existing app theme and typography. */
+:root {
+ --color-surface-200-800: var(--surface-raised);
+ --radius-base: 6px;
+}
+body {font-family:inherit;font-size:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;}

@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';import {randomUUID,randomInt} from 'node:crypto';import pg from 'pg';import {Resend} from 'resend';import {postgresConfig} from '../scripts/pg-config.ts';
+const db=new pg.Client(postgresConfig(process.env));await db.connect();
+const email=`settings-check-${randomUUID()}@example.test`,password=randomUUID(),next=randomUUID();const base='http://localhost:5173',started=Date.now();let userId;
+const jar=new Map();const save=r=>{for(const item of r.headers.getSetCookie()){const part=item.split(';')[0],i=part.indexOf('=');jar.set(part.slice(0,i),part.slice(i+1));}return r;};
+const cookies=()=>[...jar].map(([k,v])=>k+'='+v).join('; ');
+const testIP='192.0.2.'+randomInt(1,254);
+const api=(path,body,cookie=cookies())=>fetch(base+'/api/auth/'+path,{method:'POST',headers:{'x-forwarded-for':testIP,origin:process.env.ORIGIN,'content-type':'application/json',cookie},body:JSON.stringify(body)});
+const action=async(name,body)=>save(await fetch(base+'/settings?/'+name,{method:'POST',headers:{origin:base,cookie:cookies(),'content-type':'application/x-www-form-urlencoded',accept:'application/json','x-sveltekit-action':'true'},body:new URLSearchParams(body),redirect:'manual'}));
+try{
+ assert.equal((await db.query('select id_uti from bdd_clap.utilisateurs where email=$1',['delivered@resend.dev'])).rowCount,0);
+ const signup=save(await api('sign-up/email',{email,password,name:'settings-'+randomUUID().slice(0,10)}));assert.equal(signup.status,200);userId=(await signup.json()).user.id;
+ const settings=await fetch(base+'/settings',{headers:{cookie:cookies()}});assert.equal(settings.status,200);assert.ok((await settings.text()).includes('Lisière | Paramètres'));
+ const other=await api('sign-in/email',{email,password});assert.equal(other.status,200);const otherCookie=other.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ');
+ assert.equal((await action('profile',{name:'profile-'+randomUUID().slice(0,10),firstName:'Camille',lastName:'Martin'})).status,200);
+ const profile=(await db.query('select prenom,nom from bdd_clap.utilisateurs where id_uti=$1',[Number(userId)])).rows[0];assert.equal(profile.prenom,'Camille');assert.equal(profile.nom,'Martin');
+ assert.equal((await action('profile',{name:'x',firstName:'x'.repeat(81),lastName:''})).status,400);
+ assert.equal((await action('password',{currentPassword:'incorrect',password:next,confirmation:next})).status,400);
+ assert.equal((await action('password',{currentPassword:password,password:next,confirmation:next})).status,200);
+ assert.equal(await(await fetch(base+'/api/auth/get-session',{headers:{cookie:otherCookie}})).json(),null);
+ assert.equal((await api('sign-in/email',{email,password})).status,401);
+ assert.equal((await action('email',{email:'delivered@resend.dev',currentPassword:'wrong'})).status,400);
+ assert.equal((await action('email',{email:'delivered@resend.dev',currentPassword:next})).status,200);
+ assert.equal((await db.query('select email from bdd_clap.utilisateurs where id_uti=$1',[Number(userId)])).rows[0].email,email);
+ const resend=new Resend(process.env.RESEND_API_KEY);const listed=await resend.emails.list();
+ const sent=listed.data.data.find(x=>x.to.includes('delivered@resend.dev')&&x.subject==='Confirmez votre adresse e-mail — Lisière'&&new Date(x.created_at).getTime()>started-1000);assert.ok(sent);
+ const message=await resend.emails.get(sent.id);const link=message.data.text.match(/https?:\/\/\S+/)[0];const url=new URL(link);const verified=save(await fetch(base+url.pathname+url.search,{headers:{cookie:cookies()},redirect:'manual'}));assert.equal(verified.status,302);
+ const changed=(await db.query('select email,email_verifie from bdd_clap.utilisateurs where id_uti=$1',[Number(userId)])).rows[0];assert.equal(changed.email,'delivered@resend.dev');
+ assert.equal((await api('sign-in/email',{email:'delivered@resend.dev',password:next})).status,200);
+ console.log('PASS: profile/name persistence, validation, password change/current-password check, other-session revocation, email confirmation via Resend and login with new email.');
+}finally{if(userId)await db.query('delete from bdd_clap.utilisateurs where id_uti=$1',[Number(userId)]);await db.end();}

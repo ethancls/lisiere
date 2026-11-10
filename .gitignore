@@ -1,0 +1,32 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+# Local data and credentials
+*.db
+*.db-shm
+*.db-wal
+
+.local/
+
+*.log
+*.pem
+*.key

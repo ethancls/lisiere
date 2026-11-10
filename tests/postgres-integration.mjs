@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';import {parse as parseActionData} from 'devalue';import {randomUUID,randomInt} from 'node:crypto';import pg from 'pg';import {postgresConfig} from '../scripts/pg-config.ts';
+const c=new pg.Client(postgresConfig(process.env));await c.connect();
+const email=`pg-check-${randomUUID()}@example.test`,password=randomUUID(),nextPassword=randomUUID(),token=randomUUID(),reference='test:'+randomUUID();
+const headers={'content-type':'application/json',origin:process.env.ORIGIN,'x-forwarded-for':'192.0.2.'+randomInt(1,254)};
+const post=(path,body)=>fetch('http://localhost:5173/api/auth/'+path,{method:'POST',headers,body:JSON.stringify(body)});
+let createdBox;
+try{
+ const signup=await post('sign-up/email',{email,password,name:'check-'+randomUUID().slice(0,12)});assert.equal(signup.status,200);const {user}=await signup.json();assert.ok(Number(user.id)>0);
+ const cookie=signup.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ');
+ const homepage=await fetch('http://localhost:5173/',{headers:{cookie}});assert.equal(homepage.status,200);const html=await homepage.text();assert.ok(!html.includes('Le kiosque des histoires'));
+ const original=await c.query('select password_hash from bdd_clap.lisiere_account where user_id=$1',[Number(user.id)]);assert.notEqual(original.rows[0].password_hash,password);
+ const action=body=>fetch('http://localhost:5173/?/add',{method:'POST',headers:{cookie,origin:'http://localhost:5173',accept:'application/json','x-sveltekit-action':'true','content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)});
+ const city=(await c.query('select id_commune from bdd_clap.communes order by id_commune limit 1')).rows[0].id_commune;
+ const values={address:'12 rue du test',reference,communeId:String(city),latitude:'48.8566',longitude:'2.3522'};
+ assert.equal((await action({...values,communeId:'-1'})).status,400);
+ assert.equal((await action({...values,latitude:'200'})).status,400);assert.equal((await action({...values,latitude:'85.051129'})).status,400);assert.equal((await action({...values,latitude:''})).status,400);assert.equal((await action({...values,reference:'x'.repeat(51)})).status,400);
+ assert.equal((await action({...values,address:'x'.repeat(121)})).status,400);
+ const addition=await action(values);assert.equal(addition.status,200);const added=parseActionData((await addition.json()).data);assert.equal(added.success,true);assert.equal(added.box.name,reference);assert.equal(added.box.latitude,Number(values.latitude));assert.equal(added.box.longitude,Number(values.longitude));
+ const box=(await c.query('select id_boite,id_commune,public.ST_SRID(geom) srid,public.ST_Y(public.ST_Transform(geom,4326)) latitude,public.ST_X(public.ST_Transform(geom,4326)) longitude from bdd_clap.boites where ref_source=$1',[reference])).rows[0];
+ assert.ok(box);createdBox=box.id_boite;assert.equal(added.box.id,'pg:'+createdBox);assert.equal(box.id_commune,city);assert.equal(box.srid,2154);assert.ok(Math.abs(box.latitude-48.8566)<1e-7);assert.ok(Math.abs(box.longitude-2.3522)<1e-7);
+ assert.equal((await action(values)).status,409);
+ const updated=await fetch('http://localhost:5173/',{headers:{cookie}});assert.ok(!(await updated.text()).includes(reference));
+ const api=async params=>{const r=await fetch('http://localhost:5173/api/boxes?'+new URLSearchParams(params),{headers:{cookie}});assert.equal(r.status,200);return r.json();};
+ const first=await api({mode:'table',page:'1',pageSize:'25',sort:'name'});const second=await api({mode:'table',page:'2',pageSize:'25',sort:'name'});
+ assert.equal(first.totalAll,first.total);assert.equal(first.items.length,25);assert.equal(second.items.length,25);assert.ok(!first.items.some(a=>second.items.some(b=>a.id===b.id)));
+ assert.equal((await api({mode:'table',pageSize:'50'})).items.length,50);assert.equal((await api({mode:'table',pageSize:'100'})).items.length,100);
+ const found=await api({q:reference});assert.equal(found.total,1);assert.equal(found.totalAll,first.totalAll);assert.equal(found.items[0].id,'pg:'+createdBox);assert.equal(typeof found.items[0].department,'string');assert.equal(typeof found.items[0].departmentCode,'string');
+ const geo=await api({mode:'map',west:'2.3521',east:'2.3523',south:'48.8565',north:'48.8567'});assert.equal(geo.totalAll,first.totalAll);assert.ok(geo.items.some(b=>b.id==='pg:'+createdBox));
+ assert.ok(geo.items.every(b=>b.longitude>=2.3521&&b.longitude<=2.3523&&b.latitude>=48.8565&&b.latitude<=48.8567));
+ const empty=await api({mode:'map',west:'-150',east:'-140',south:'10',north:'20'});assert.equal(empty.total,0);
+ const world=await api({mode:'map',west:'-180',east:'180',south:'-85',north:'85'});assert.equal(world.items.length,1000);assert.ok(world.truncated);
+ assert.equal((await api({mode:'map',west:'170',east:'-170',south:'-10',north:'10'})).total,0);
+ for(const params of ['page=0','pageSize=999','sort=bad','mode=map','mode=map&west=NaN&east=3&south=48&north=49'])assert.equal((await fetch('http://localhost:5173/api/boxes?'+params,{headers:{cookie}})).status,400);
+ assert.equal((await fetch('http://localhost:5173/api/boxes',{redirect:'manual'})).status,401);
+ assert.equal((await api({q:'%'})).total,0);
+ const cities=await fetch('http://localhost:5173/api/communes',{headers:{cookie}});assert.equal(cities.status,200);assert.ok((await cities.json()).length>0);
+ await c.query('insert into bdd_clap.lisiere_verification (id,identifier,value,expires_at) values ($1,$2,$3,now()+interval \'5 minutes\')',[token,'reset-password:'+token,String(user.id)]);
+ assert.equal((await post('reset-password',{token,newPassword:nextPassword})).status,200);
+ assert.equal(await(await fetch('http://localhost:5173/api/auth/get-session',{headers:{cookie}})).json(),null);
+ assert.equal((await post('sign-in/email',{email,password})).status,401);
+ assert.equal((await post('sign-in/email',{email,password:nextPassword})).status,200);
+ assert.equal((await post('reset-password',{token,newPassword:nextPassword})).status,400);
+ console.log('PASS: PostgreSQL auth/reset, real boxes, commune/field validation, persistent box insert, Lambert-93 conversion, duplicate reference, paginated/geographic APIs, bounds/parameter validation and lazy page payload.');
+}finally{
+ await c.query('delete from bdd_clap.boites where ref_source=$1',[reference]);
+ await c.query('delete from bdd_clap.lisiere_verification where id=$1',[token]);await c.query('delete from bdd_clap.utilisateurs where email=$1',[email]);await c.end();
+}
