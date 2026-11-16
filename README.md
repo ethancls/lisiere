@@ -54,7 +54,7 @@ L'inscription demande un pseudo, limité à 50 caractères. Le hook serveur prot
 
 Les déclarations Drizzle sont dans `src/lib/server/postgres/schema.ts`. Toute évolution du schéma existant doit passer par une migration SQL relue.
 
-Attention pour une future intégration des mouvements : la FK actuelle `bdd_clap.mouvements.id_uti` référence `public.utilisateurs`, pas `bdd_clap.utilisateurs`. Elle est conservée et devra être traitée avant d'enregistrer des mouvements depuis l'application.
+`postgres/003_mouvements_fk.sql` rattache `bdd_clap.mouvements.id_uti` à `bdd_clap.utilisateurs`. La contrainte précédente n'était pas qualifiée et se résolvait vers `public.utilisateurs` par le `search_path` du rôle : elle est supprimée et recréée à sémantique identique (FK simple, `NO ACTION`).
 
 ## Interface
 
@@ -90,4 +90,4 @@ Inspection en lecture seule du schéma bdd_clap, novembre 2026 :
 - livre_position : boîte actuelle, date de mise à jour et confirmation ; mouvements : exemplaire, boîte, utilisateur, type et date.
 - ouvrages, exemplaires, livre_position et mouvements sont actuellement vides. Ils permettent des évolutions de catalogue et de suivi, sans contenu à afficher pour l'instant.
 
-La clé mouvements.id_uti référence encore public.utilisateurs. Il faudra corriger cette relation avant de connecter les futurs mouvements aux comptes de bdd_clap.utilisateurs.
+La clé mouvements.id_uti est désormais rattachée à bdd_clap.utilisateurs par postgres/003_mouvements_fk.sql, et non plus à public.utilisateurs.
