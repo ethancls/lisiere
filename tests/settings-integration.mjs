@@ -9,7 +9,7 @@ const action=async(name,body)=>save(await fetch(base+'/settings?/'+name,{method:
 try{
  assert.equal((await db.query('select id_uti from bdd_clap.utilisateurs where email=$1',['delivered@resend.dev'])).rowCount,0);
  const signup=save(await api('sign-up/email',{email,password,name:'settings-'+randomUUID().slice(0,10)}));assert.equal(signup.status,200);userId=(await signup.json()).user.id;
- const settings=await fetch(base+'/settings',{headers:{cookie:cookies()}});assert.equal(settings.status,200);assert.ok((await settings.text()).includes('Lisière | Paramètres'));
+ const settings=await fetch(base+'/settings',{headers:{cookie:cookies()}});assert.equal(settings.status,200);assert.ok((await settings.text()).includes('CLAP | Paramètres'));
  const other=await api('sign-in/email',{email,password});assert.equal(other.status,200);const otherCookie=other.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ');
  assert.equal((await action('profile',{name:'profile-'+randomUUID().slice(0,10),firstName:'Camille',lastName:'Martin'})).status,200);
  const profile=(await db.query('select prenom,nom from bdd_clap.utilisateurs where id_uti=$1',[Number(userId)])).rows[0];assert.equal(profile.prenom,'Camille');assert.equal(profile.nom,'Martin');
@@ -22,7 +22,7 @@ try{
  assert.equal((await action('email',{email:'delivered@resend.dev',currentPassword:next})).status,200);
  assert.equal((await db.query('select email from bdd_clap.utilisateurs where id_uti=$1',[Number(userId)])).rows[0].email,email);
  const resend=new Resend(process.env.RESEND_API_KEY);const listed=await resend.emails.list();
- const sent=listed.data.data.find(x=>x.to.includes('delivered@resend.dev')&&x.subject==='Confirmez votre adresse e-mail — Lisière'&&new Date(x.created_at).getTime()>started-1000);assert.ok(sent);
+ const sent=listed.data.data.find(x=>x.to.includes('delivered@resend.dev')&&x.subject==='Confirmez votre adresse e-mail — CLAP'&&new Date(x.created_at).getTime()>started-1000);assert.ok(sent);
  const message=await resend.emails.get(sent.id);const link=message.data.text.match(/https?:\/\/\S+/)[0];const url=new URL(link);const verified=save(await fetch(base+url.pathname+url.search,{headers:{cookie:cookies()},redirect:'manual'}));assert.equal(verified.status,302);
  const changed=(await db.query('select email,email_verifie from bdd_clap.utilisateurs where id_uti=$1',[Number(userId)])).rows[0];assert.equal(changed.email,'delivered@resend.dev');
  assert.equal((await api('sign-in/email',{email:'delivered@resend.dev',password:next})).status,200);

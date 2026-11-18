@@ -4,7 +4,7 @@ import MailCheck from 'phosphor-svelte/lib/EnvelopeSimpleIcon';
  import AuthShell from '#lib/components/AuthShell.svelte';
  let {form}=$props(); let pending=$state(false);
 </script>
-<svelte:head><title>Lisière | Mot de passe oublié</title></svelte:head>
+<svelte:head><title>CLAP | Mot de passe oublié</title></svelte:head>
 <AuthShell>
  <span class="eyebrow">Votre compte</span>
  {#if form?.sent}

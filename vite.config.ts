@@ -2,9 +2,10 @@ import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+import { transitionOrigins } from './src/lib/transition-origins.ts';
 
 export default defineConfig({
- server: { allowedHosts: ['lisiere.ethancls.com'] },
+ server: { allowedHosts: ['lisiere.ethancls.com', 'clap.ethancls.com'] },
 	plugins: [
         tailwindcss(),
 		sveltekit({
@@ -13,7 +14,8 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter()
+			adapter: adapter(),
+			csrf: { trustedOrigins: transitionOrigins }
 		})
 	]
 });

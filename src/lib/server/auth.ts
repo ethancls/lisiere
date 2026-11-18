@@ -8,10 +8,11 @@ import { postgres } from './postgres';
 import * as pgSchema from './postgres/schema';
 import {z} from 'zod';
 import { sendPasswordReset,sendAccountEmail } from './email';
+import { transitionOrigins } from '../transition-origins';
 
 export const auth = betterAuth({
 	baseURL: ORIGIN,
- trustedOrigins: [ORIGIN, 'http://localhost:5173'],
+ trustedOrigins: [...transitionOrigins, 'http://localhost:5173'],
 	secret: BETTER_AUTH_SECRET,
 	database: drizzleAdapter(postgres,{provider:'pg',schema:pgSchema}),
     advanced: {database:{generateId:({model})=>model==='user'?false:crypto.randomUUID()}},

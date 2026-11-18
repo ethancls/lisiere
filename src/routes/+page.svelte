@@ -41,7 +41,7 @@
   return()=>{clearTimeout(timer);controller.abort();};
  });
 </script>
-<svelte:head><title>Lisière | {view==='map'?'Carte':'Tableau'}</title></svelte:head>
+<svelte:head><title>CLAP | {view==='map'?'Carte':'Tableau'}</title></svelte:head>
 <main class="home">
  <AppHeader user={data.user} bind:search onSearch={()=>page=1}>{#snippet actions()}<AddBox center={camera.center} onSaved={box=>{search='';refresh++;locate(box);}}/>{/snippet}</AppHeader>
  <div class="home-toolbar"><div class="home-context"><h1>Boîtes à livres</h1><span>{#if loading}<LoadingSkeleton variant="count" label="Chargement du nombre de lieux"/>{:else}{number.format(active.items.length)} lieu{active.items.length!==1?'x':''} affiché{active.items.length!==1?'s':''} sur {number.format(active.totalAll)}{/if}</span></div><div class="view-control" aria-label="Mode d’affichage"><button class:chosen={view==='map'} aria-pressed={view==='map'} onclick={()=>view='map'}><MapPin size={18}/>Carte</button><button class:chosen={view==='table'} aria-pressed={view==='table'} onclick={()=>view='table'}><Table size={18}/>Tableau</button></div></div>

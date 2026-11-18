@@ -32,9 +32,9 @@
     };
     instance.on('moveend',publish);instance.on('style.load',()=>{
      instance.addSource('boxes',{type:'geojson',data:geojson(),cluster:true,clusterRadius:42,clusterMaxZoom:13});
-     instance.addLayer({id:'box-clusters',type:'circle',source:'boxes',filter:['has','point_count'],paint:{'circle-color':'#b7ef74','circle-radius':['step',['get','point_count'],16,100,21],'circle-stroke-width':1.5,'circle-stroke-color':'#203722'}});
-     instance.addLayer({id:'box-cluster-count',type:'symbol',source:'boxes',filter:['has','point_count'],layout:{'text-field':['get','point_count_abbreviated'],'text-font':['Noto Sans Regular'],'text-size':12},paint:{'text-color':'#203722'}});
-     instance.addLayer({id:'box-points',type:'circle',source:'boxes',filter:['!', ['has','point_count']],paint:{'circle-color':'#b7ef74','circle-radius':6,'circle-stroke-width':1.5,'circle-stroke-color':'#203722'}});
+     instance.addLayer({id:'box-clusters',type:'circle',source:'boxes',filter:['has','point_count'],paint:{'circle-color':'#9CD9C8','circle-radius':['step',['get','point_count'],16,100,21],'circle-stroke-width':1.5,'circle-stroke-color':'#182929'}});
+     instance.addLayer({id:'box-cluster-count',type:'symbol',source:'boxes',filter:['has','point_count'],layout:{'text-field':['get','point_count_abbreviated'],'text-font':['Noto Sans Regular'],'text-size':12},paint:{'text-color':'#182929'}});
+     instance.addLayer({id:'box-points',type:'circle',source:'boxes',filter:['!', ['has','point_count']],paint:{'circle-color':'#9CD9C8','circle-radius':6,'circle-stroke-width':1.5,'circle-stroke-color':'#182929'}});
      ready=true;error='';
     });
     instance.on('click','box-clusters',async event=>{
@@ -55,7 +55,7 @@
  $effect(()=>{
   if(!map||!MarkerConstructor)return;
   if(active){
-   if(!activeMarker){activeMarker=new MarkerConstructor({color:'#ed9b55',scale:1.25,className:'selected-box-marker'}).setLngLat([active.longitude,active.latitude]).addTo(map);}
+   if(!activeMarker){activeMarker=new MarkerConstructor({color:'#F2B694',scale:1.25,className:'selected-box-marker'}).setLngLat([active.longitude,active.latitude]).addTo(map);}
    else activeMarker.setLngLat([active.longitude,active.latitude]);
    activeMarker.getElement().setAttribute('aria-label','Boîte sélectionnée : '+active.name);
   }else{activeMarker?.remove();activeMarker=undefined;}
