@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
- server: { allowedHosts: ['clap.ethancls.com'] },
+ server: { allowedHosts: ['lisiere.ethancls.com', 'clap.ethancls.com'] },
 	plugins: [
         tailwindcss(),
 		sveltekit({
