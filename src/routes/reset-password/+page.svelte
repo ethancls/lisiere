@@ -5,7 +5,7 @@ import Check from 'phosphor-svelte/lib/CheckIcon';
  let {data,form}=$props(); let password=$state(''),confirmation=$state(''),pending=$state(false);
  const valid=$derived(password.length>=8&&password.length<=128&&password===confirmation);
 </script>
-<svelte:head><title>Lisière | Nouveau mot de passe</title><meta name="referrer" content="no-referrer"/></svelte:head>
+<svelte:head><title>CLAP | Nouveau mot de passe</title><meta name="referrer" content="no-referrer"/></svelte:head>
 <AuthShell>
  <span class="eyebrow">Votre compte</span>
  {#if form?.success}

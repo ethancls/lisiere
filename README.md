@@ -1,4 +1,4 @@
-# Lisière
+# CLAP — Collectif pour la Lecture Accessible et Partagée
 
 Application de boîtes à livres : SvelteKit 3, Svelte 5, TypeScript, Bits UI, Phosphor, MapLibre GL JS, Better Auth et Drizzle ORM.
 
@@ -11,7 +11,7 @@ cp .env.example .env
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
-Sur cette machine, la configuration est déjà présente. Le domaine public est `https://lisiere.ethancls.com` et l'accès local est `http://localhost:5173`.
+L’accès local est `http://localhost:5173`. Le domaine public prévu est `https://clap.ethancls.com`.
 
 ## PostgreSQL
 
@@ -43,7 +43,9 @@ L'inscription demande un pseudo, limité à 50 caractères. Le hook serveur prot
 
 `/forgot-password` envoie un lien Resend depuis `noreply@mail.ethancls.com`. `/reset-password` vérifie la confirmation et les règles du nouveau mot de passe. Les jetons expirent après 30 minutes, sont à usage unique et révoquent les sessions après modification. Les endpoints sont limités en fréquence. Les erreurs de transport ne sont plus présentées comme un envoi réussi.
 
-`ORIGIN` détermine l'adresse des liens. `RESEND_API_KEY`, `RESEND_FROM` et `BETTER_AUTH_SECRET` restent dans `.env`.
+Définissez `ORIGIN=http://localhost:5173` en local et `ORIGIN=https://clap.ethancls.com` lors du déploiement sur le nouveau domaine. Utilisez l’origine publique exacte (schéma et hôte, sans chemin) : l’adaptateur Node et Better Auth l’utilisent pour les requêtes, et les liens de confirmation et de réinitialisation la reprennent. Les sessions et préférences enregistrées sur l’ancien domaine ne sont pas transférées par le navigateur.
+
+`RESEND_API_KEY`, `RESEND_FROM` (adresse d’expédition vérifiée chez Resend) et `BETTER_AUTH_SECRET` restent dans `.env`. Les aperçus ne doivent pas réutiliser la connexion PostgreSQL de production.
 
 ## Vérification et migrations
 
@@ -58,7 +60,7 @@ Les déclarations Drizzle sont dans `src/lib/server/postgres/schema.ts`. Toute �
 
 ## Interface
 
-Le système visuel est documenté dans `docs/design-system.md`, avec les retouches guidées par [unslop, Damir Sokolovsky](https://github.com/heydamir/unslop) (CC BY 4.0). Thèmes clair/sombre, logo boussole fourni par l'utilisateur, carte bord à bord et tableau triable. La disponibilité du nom Lisière n'a pas été vérifiée.
+Le système visuel est documenté dans `docs/design-system.md`, avec les retouches guidées par [unslop, Damir Sokolovsky](https://github.com/heydamir/unslop) (CC BY 4.0). Thèmes clair/sombre, logo aux quatre livres fourni par Marine, carte bord à bord et tableau triable.
 
 ## Chargement progressif
 
@@ -79,7 +81,7 @@ Run npm run test:settings to exercise profile validation, password changes, sess
 
 Le formulaire centré utilise Skeleton Dialog et une carte de positionnement. Cliquer sur la carte ou déplacer son repère remplit les coordonnées. Le bouton Me localiser demande la position au navigateur ; une saisie manuelle reste disponible. La commune est choisie dans une liste personnalisée recherchable. Adresse, commune, GPS et référence optionnelle correspondent aux colonnes existantes ; aucune migration n'est nécessaire. La réponse inclut la boîte insérée pour la sélectionner immédiatement.
 
-La sélection sur la carte reste indépendante des chargements de zone. Un repère orange distinct remplace le point sélectionné dans les clusters. La fiche conserve adresse, code postal, commune et département, avec recentrage et ouverture Google Maps.
+La sélection sur la carte reste indépendante des chargements de zone. Un repère pêche distinct remplace le point sélectionné dans les clusters. La fiche conserve adresse, code postal, commune et département, avec recentrage et ouverture Google Maps.
 
 ### Données PostgreSQL disponibles
 

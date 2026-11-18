@@ -1,3 +1,3 @@
 <script lang="ts">import '../skeleton.css';import '../app.css'; let { children } = $props();</script>
-<svelte:head><title>Lisière | Explorer</title><meta name="description" content="Découvrez les boîtes à livres autour de vous et partagez vos prochaines lectures."/><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2"/></svelte:head>
+<svelte:head><title>CLAP | Explorer</title><meta name="description" content="CLAP, Collectif pour la Lecture Accessible et Partagée. Découvrez les boîtes à livres autour de vous et partagez vos prochaines lectures."/><link rel="icon" type="image/png" href="/clap-favicon.png"/></svelte:head>
 {@render children()}

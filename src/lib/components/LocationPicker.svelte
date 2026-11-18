@@ -31,7 +31,7 @@
    applyPosition=(position,fly=false)=>{
     if(disposed)return;
     if(!marker){
-     marker=new gl.Marker({color:'#ed9b55',draggable:true}).setLngLat([position.longitude,position.latitude]).addTo(instance);
+     marker=new gl.Marker({color:'#F2B694',draggable:true}).setLngLat([position.longitude,position.latitude]).addTo(instance);
      marker.getElement().setAttribute('aria-label','Emplacement de la boîte, déplaçable avec les flèches du clavier');
      marker.on('dragend',()=>{const p=marker!.getLngLat();update({latitude:p.lat,longitude:((p.lng+180)%360+360)%360-180});});
     }else marker.setLngLat([position.longitude,position.latitude]);
