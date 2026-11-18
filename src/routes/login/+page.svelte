@@ -21,7 +21,6 @@ import ArrowUpRight from 'phosphor-svelte/lib/ArrowUpRightIcon';
 </script>
 <svelte:head><title>CLAP | {signup ? 'Inscription' : 'Connexion'}</title></svelte:head>
 <AuthShell>
-  <span class="eyebrow">Bienvenue chez CLAP</span>
   <h2>{signup ? 'Rejoins l’histoire.' : 'Heureux de te revoir.'}</h2>
   <p class="muted">{signup ? 'Un compte pour explorer et contribuer.' : 'Tes prochaines découvertes sont tout près.'}</p>
   <div class="switch" aria-label="Accès au compte">
