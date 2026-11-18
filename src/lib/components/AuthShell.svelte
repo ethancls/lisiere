@@ -122,6 +122,7 @@
  }
  .auth-card :global(.primary:disabled) {
   color: var(--text-secondary);
+  transition: none;
  }
  @media (max-width: 700px) {
   .auth-shell {
