@@ -9,7 +9,6 @@
  <section class="auth-story">
   <Logo/>
   <div class="story-copy">
-   <span class="eyebrow">Un livre. Une rencontre.</span>
    <h1>Les belles histoires commencent <em>au coin de la rue.</em></h1>
    <p>Trouvez une boîte à livres, déposez un coup de cœur. Et laissez les histoires voyager.</p>
   </div>
@@ -22,7 +21,6 @@
  .auth-shell {
   --story-paper: #252534;
   --story-light: #353449;
-  --story-rule: var(--clap-peach);
   --story-ink: var(--text);
   --story-wash: #373f57;
   position: relative;
@@ -35,7 +33,6 @@
  :global(:root[data-theme=light]) .auth-shell {
   --story-paper: #f4e8db;
   --story-light: #f9f1e7;
-  --story-rule: var(--clap-brown);
   --story-ink: #283461;
   --story-wash: #c5dfeb;
  }
@@ -57,15 +54,10 @@
   padding-block: 0 32px;
   max-width: min(62%, 34rem);
  }
- .story-copy .eyebrow {
-  display: inline-block;
-  border-top: 2px solid var(--story-rule);
-  padding-top: 12px;
- }
  .story-copy h1 {
   position: relative;
   isolation: isolate;
-  margin: 20px 0;
+  margin: 0;
   color: var(--story-ink);
   font-size: clamp(28px, 3.5vw, 60px);
   font-weight: 800;
@@ -116,8 +108,7 @@
   margin-block: 24px;
  }
  .auth-card :global(.switch button.active) {
-  box-shadow: inset 0 -2px var(--accent);
-  color: var(--accent);
+  color: var(--text);
   font-weight: 700;
  }
  .auth-card :global(.primary:disabled) {
@@ -138,7 +129,7 @@
    max-width: 72%;
    padding: 0;
   }
-  .story-copy .eyebrow, .story-copy p {
+  .story-copy p {
    display: none;
   }
   .story-copy h1 {
