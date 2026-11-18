@@ -37,9 +37,9 @@ Phosphor (`phosphor-svelte`, imports directs) fournit les icônes d’interface.
 
 Les actions principales utilisent le couple `--accent` / `--on-accent` : blanc sur brun en clair, encre foncée sur menthe en sombre. Les états d’erreur et de réussite gardent leurs couleurs sémantiques et un indicateur textuel ou une icône.
 
-Story panel: 56px right corners on desktop/tablet, 40px bottom corners on mobile. Mobile inputs use 16px text to avoid automatic zoom.
+Le panneau narratif occupe environ 55 % de la largeur sur ordinateur. Le titre bleu encre, posé sur un aplat bleu organique inspiré de la présentation, conserve son emphase en Georgia. Le texte occupe sa propre colonne, à côté de l’illustration de Marine ancrée au bord droit. Le WebP transparent conserve les couleurs des livres et laisse apparaître le fond papier chaud en clair ou l’encre lavande en sombre.
 
-The story panel occupies 48% of desktop/tablet width. The theme toggle has no border or background; its 44px hit area and keyboard focus ring remain.
+Sur mobile, le panneau devient un bandeau compact : le logo et le titre restent visibles, avec un recadrage sur le haut de la bibliothèque. Les champs conservent leur taille de texte de 16 px pour éviter le zoom automatique. Le bouton de thème conserve sa cible de 44 px et son contour de focus.
 
 Tab titles follow `CLAP | Page name`, including the client-side signup mode.
 
