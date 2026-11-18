@@ -45,6 +45,8 @@ L'inscription demande un pseudo, limité à 50 caractères. Le hook serveur prot
 
 Définissez `ORIGIN=http://localhost:5173` en local et `ORIGIN=https://clap.ethancls.com` lors du déploiement sur le nouveau domaine. Utilisez l’origine publique exacte (schéma et hôte, sans chemin) : l’adaptateur Node et Better Auth l’utilisent pour les requêtes, et les liens de confirmation et de réinitialisation la reprennent. Les sessions et préférences enregistrées sur l’ancien domaine ne sont pas transférées par le navigateur.
 
+Pendant la transition, les formulaires et Better Auth acceptent les deux origines HTTPS exactes. Les nouveaux liens utilisent toujours `ORIGIN`, même si la demande vient de l’autre domaine. Gardez les deux domaines accessibles en HTTPS jusqu’à expiration des liens déjà envoyés ; ne redirigez pas les requêtes d’authentification vers l’autre domaine. Les liens de réinitialisation restent valables au plus 30 minutes et ne sont utilisables qu’une fois.
+
 `RESEND_API_KEY`, `RESEND_FROM` (adresse d’expédition vérifiée chez Resend) et `BETTER_AUTH_SECRET` restent dans `.env`. Les aperçus ne doivent pas réutiliser la connexion PostgreSQL de production.
 
 ## Vérification et migrations
