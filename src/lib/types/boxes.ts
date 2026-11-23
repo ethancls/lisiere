@@ -5,6 +5,7 @@ export interface Coordinates {latitude:number;longitude:number}
 export type BoxFilters = {
  commune: number | null;
  department: number | null;
+ street: string;
  books: 'all' | 'with' | 'without';
  title: string;
  genre: string;
@@ -15,8 +16,9 @@ export type FilterCommune = {
  postalCode: string;
  department: {id:number;name:string;code:string} | null;
 };
-export const emptyBoxFilters: BoxFilters = {commune:null,department:null,books:'all',title:'',genre:''};
+export const maxStreetLength = 120;
+export const emptyBoxFilters: BoxFilters = {commune:null,department:null,street:'',books:'all',title:'',genre:''};
 export function countBoxFilters(filters:BoxFilters){
  return Number(filters.commune!==null)+Number(filters.department!==null)+Number(filters.books!=='all')+
-  Number(!!filters.title.trim())+Number(!!filters.genre.trim());
+  Number(!!filters.street.trim())+Number(!!filters.title.trim())+Number(!!filters.genre.trim());
 }

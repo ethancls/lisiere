@@ -7,9 +7,13 @@ export async function queryBoxes(query:BoxQuery):Promise<BoxPage>{
  const clauses:SQL[]=[];
  if(query.mode==='map')clauses.push(isNotNull(boites.geom));
  if(query.search){const pattern=containsPattern(query.search);clauses.push(or(ilike(boites.refSource,pattern),ilike(boites.address,pattern),ilike(communes.name,pattern),ilike(communes.postalCode,pattern))!);}
- const {commune,department,books,title,genre}=query.filters;
+ const {commune,department,street,books,title,genre}=query.filters;
  if(commune!==null)clauses.push(eq(boites.communeId,commune));
  if(department!==null)clauses.push(eq(communes.departmentId,department));
+ if(street){
+  const fold=(value:SQL)=>sql`regexp_replace(normalize(lower(${value}), NFD), U&'[\\0300-\\036F]', '', 'g')`;
+  clauses.push(sql`strpos(${fold(sql`${boites.address}`)},nullif(${fold(sql`${street}::text`)},'')) > 0`);
+ }
  if(books==='without'&&(title||genre))clauses.push(sql`false`);
  else if(books!=='all'||title||genre){
   const present=sql`EXISTS (
