@@ -27,7 +27,7 @@
   const controller=new AbortController();
   const query=new URLSearchParams({lat:String(point.latitude),lon:String(point.longitude)});
   const timer=setTimeout(()=>{
-   void fetch('/api/reverse-address?'+query,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(8000)])})
+   void fetch('/api/reverse-address?'+query,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])})
     .then(async response=>{
      if(!response.ok)throw new Error();
      const suggestion:Suggestion=await response.json();

@@ -9,6 +9,7 @@ export const GET:RequestHandler=async({url,locals})=>{
  const point=parseCoordinates(url.searchParams.get('lat'),url.searchParams.get('lon'));
  if(!point)error(400,'Coordonnées GPS invalides.');
  const [city,address]=await Promise.allSettled([boxCommune(point),reverseAddress(point.latitude,point.longitude)]);
+ if(address.status==='rejected')console.warn('IGN address lookup unavailable:',address.reason instanceof Error?address.reason.message:'unknown error');
  return json({
   commune:city.status==='fulfilled'?city.value?.name??null:null,
   communeUnavailable:city.status==='rejected',

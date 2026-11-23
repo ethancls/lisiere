@@ -83,7 +83,9 @@ Run npm run test:settings to exercise profile validation, password changes, sess
 
 ### Ajout et localisation
 
-Le formulaire centré utilise Skeleton Dialog et une carte de positionnement. Cliquer sur la carte ou déplacer son repère remplit les coordonnées. Le bouton Me localiser demande la position au navigateur ; une saisie manuelle reste disponible. La commune est choisie dans une liste personnalisée recherchable. Adresse, commune, GPS et référence optionnelle correspondent aux colonnes existantes ; aucune migration n'est nécessaire. La réponse inclut la boîte insérée pour la sélectionner immédiatement.
+Le formulaire détermine la commune à partir du point choisi sur la carte, de la position autorisée par le navigateur ou des coordonnées saisies. Le serveur vérifie à nouveau au moment de l’ajout : une seule commune doit être trouvée par l’API Découpage administratif, et son code INSEE doit correspondre au catalogue. En cas de panne de cette vérification, réessayez ; si le point est hors catalogue, déplacez le repère. Aucune migration n’est nécessaire.
+
+L’IGN fournit une suggestion d’adresse modifiable, sans déplacer le repère. Seules les coordonnées et les paramètres de recherche sont envoyés aux deux services, sans les données de session. Après un délai dépassé, une erreur réseau ou un HTTP 502/503/504, l’application réessaie l’IGN une fois (4 s, puis 3 s au maximum). Si l’IGN ne répond pas, on peut toujours saisir l’adresse et ajouter la boîte si la commune a été vérifiée. Un résultat valide sans adresse proche n’est pas une panne. Les journaux serveur indiquent le motif d’un échec IGN sans les coordonnées.
 
 La sélection sur la carte reste indépendante des chargements de zone. Un repère pêche distinct remplace le point sélectionné dans les clusters. La fiche conserve adresse, code postal, commune et département, avec recentrage et ouverture Google Maps.
 

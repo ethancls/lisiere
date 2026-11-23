@@ -26,8 +26,29 @@ test('no invented numbers, no distant addresses and no locality-only suggestions
 });
 
 test('provider failure is distinct from an empty search',async()=>{
- await assert.rejects(reverseAddress(48.89,2.34,async()=>new Response('',{status:503})));
- await assert.rejects(reverseAddress(48.89,2.34,async()=>Response.json({bad:'payload'})));
+ let attempts=0;
+ await assert.rejects(reverseAddress(48.89,2.34,async()=>{attempts++;return new Response('',{status:503});}),/HTTP 503/);
+ assert.equal(attempts,2);
+ for(const [response,message] of [
+  [()=>new Response('',{status:429}),/HTTP 429/],
+  [()=>Response.json({bad:'payload'}),/invalid response shape/]
+ ]){
+  attempts=0;
+  await assert.rejects(reverseAddress(48.89,2.34,async()=>{attempts++;return response();}),message);
+  assert.equal(attempts,1);
+ }
+});
+
+test('recovers once from an IGN timeout, network error or gateway failure',async()=>{
+ for(const fail of [
+  ()=>{throw new DOMException('Timeout','TimeoutError');},
+  ()=>{throw new TypeError('Failed to fetch');},
+  ()=>new Response('',{status:502})
+ ]){
+  let attempts=0;
+  assert.equal(await reverseAddress(48.89,2.34,async()=>++attempts===1?fail():result(hit)()),'12 bis, Rue Émile Blémont');
+  assert.equal(attempts,2);
+ }
 });
 
 test('only a unique official boundary result is accepted, including Paris and Corsica',async()=>{
