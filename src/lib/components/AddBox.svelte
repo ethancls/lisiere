@@ -1,82 +1,46 @@
 <script lang="ts">
- import {Dialog,Combobox,Portal,useListCollection} from '@skeletonlabs/skeleton-svelte';
+ import {Dialog,Portal} from '@skeletonlabs/skeleton-svelte';
  import {enhance} from '$app/forms';
- import {onDestroy,untrack} from 'svelte';
- import {parentCommuneCode,postalCodeCommune} from '#lib/types/communes.ts';
+ import {untrack} from 'svelte';
+ import {parseCoordinates} from '#lib/types/coordinates.ts';
  import LocationPicker from './LocationPicker.svelte';
- import Plus from 'phosphor-svelte/lib/PlusIcon';import X from 'phosphor-svelte/lib/XIcon';import CaretDown from 'phosphor-svelte/lib/CaretDownIcon';import Check from 'phosphor-svelte/lib/CheckIcon';import MapPin from 'phosphor-svelte/lib/MapPinIcon';
+ import Plus from 'phosphor-svelte/lib/PlusIcon';import X from 'phosphor-svelte/lib/XIcon';import MapPin from 'phosphor-svelte/lib/MapPinIcon';
  import type {Box,Coordinates} from '#lib/types/boxes.ts';
- type City={id:number;name:string;postalCode:string;inseeCode:string|null};
- type Suggestion={address:string;inseeCode:string};
+ type Suggestion={commune:string|null;communeUnavailable:boolean;address:string|null;addressUnavailable:boolean};
  let {center=[2.35,48.862],onSaved}:{center?:[number,number];onSaved?:(box:Box)=>void}=$props();
  let open=$state(false),pending=$state(false),error=$state('');
  let address=$state(''),reference=$state(''),position=$state<Coordinates|null>(null);
  let latitude=$state<number|undefined>(),longitude=$state<number|undefined>();
- let communes=$state<City[]>([]),citiesLoading=$state(false),citiesError=$state(''),retry=$state(0);
- let cityId=$state(''),cityInput=$state(''),cityFilter=$state('');
- let addressEdited=$state(false),cityEdited=$state(false);
- let lookup:AbortController|undefined;
- let suggestion=$state<Suggestion|null>(null);
- let lookupState=$state<'idle'|'loading'|'error'|'none'|'found'>('idle');
- const normalize=(text:string)=>text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr');
- const cityLabel=(city:City)=>['75056','69123','13055'].includes(city.inseeCode??'')?city.name:`${city.name} (${city.postalCode})`;
- const matchingCities=$derived.by(()=>{
-  const text=normalize(cityFilter.trim()),postalCommune=postalCodeCommune(text);
-  return communes.filter(city=>normalize(`${city.name} (${city.postalCode})`).includes(text)||postalCommune===city.inseeCode);
- });
- const collection=$derived(useListCollection({items:matchingCities,itemToString:cityLabel,itemToValue:(city:City)=>String(city.id)}));
- const valid=$derived(!!address.trim()&&!!cityId&&!!position);
- const suggestedCity=$derived.by(()=>{
-  if(!suggestion)return undefined;
-  const code=suggestion.inseeCode;
-  for(const candidate of new Set([code,parentCommuneCode(code)])){
-   const matches=communes.filter(city=>city.inseeCode===candidate);
-   if(matches.length===1)return matches[0];
-   if(matches.length>1)return undefined;
-  }
- });
- function clearSuggestion(){
-  lookup?.abort();lookup=undefined;suggestion=null;lookupState='idle';
-  if(!addressEdited)address='';
-  if(!cityEdited){cityId='';cityInput='';cityFilter='';}
- }
- function setPosition(value:Coordinates){
-  position=value;latitude=Number(value.latitude.toFixed(7));longitude=Number(value.longitude.toFixed(7));
-  clearSuggestion();
-  const controller=new AbortController();lookup=controller;lookupState='loading';
-  const query=new URLSearchParams({lat:String(latitude),lon:String(longitude)});
-  void fetch('/api/reverse-address?'+query,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(6000)])})
-   .then(async response=>{
-    if(!response.ok)throw new Error();
-    const result:Suggestion|null=await response.json();
-    if(controller.signal.aborted)return;
-    suggestion=result;lookupState=result?'found':'none';
-    if(result&&!addressEdited)address=result.address;
-   }).catch(()=>{if(!controller.signal.aborted)lookupState='error';});
- }
- function updateCoordinates(){
-  clearSuggestion();
-  position=latitude!==undefined&&longitude!==undefined&&Number.isFinite(latitude)&&Number.isFinite(longitude)&&Math.abs(latitude)<=85.051128&&Math.abs(longitude)<=180?{latitude,longitude}:null;
- }
- function reset(){addressEdited=false;cityEdited=false;clearSuggestion();reference='';position=null;latitude=undefined;longitude=undefined;error='';}
- onDestroy(()=>lookup?.abort());
+ let addressEdited=$state(false),retry=$state(0);
+ let result=$state<Suggestion|null>(null),loading=$state(false),lookupFailed=$state(false);
+ const valid=$derived(!!address.trim()&&!!result?.commune&&!!position&&!loading);
+ function setPosition(value:Coordinates){position=value;latitude=value.latitude;longitude=value.longitude;}
+ function updateCoordinates(){position=parseCoordinates(String(latitude??''),String(longitude??''));}
+ function reset(){addressEdited=false;address='';reference='';position=null;latitude=undefined;longitude=undefined;error='';}
  $effect(()=>{
-  const city=suggestedCity;
-  if(city&&!cityEdited){cityId=String(city.id);cityInput=cityLabel(city);cityFilter='';}
- });
- $effect(()=>{
-  if(!open||untrack(()=>communes.length>0))return;void retry;
-  const controller=new AbortController();citiesLoading=true;citiesError='';
-  void fetch('/api/communes?insee',{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])}).then(async response=>{
-   if(!response.ok)throw new Error();
-   const items:City[]=await response.json();
-   if(!Array.isArray(items))throw new Error();
-   if(!controller.signal.aborted)communes=items;
-  }).catch(()=>{if(!controller.signal.aborted)citiesError='Les communes n’ont pas pu être chargées.';}).finally(()=>{if(!controller.signal.aborted)citiesLoading=false;});
-  return()=>controller.abort();
+  const point=position;
+  if(!open)return;
+  void retry;
+  result=null;lookupFailed=false;loading=!!point;error='';
+  if(!untrack(()=>addressEdited))address='';
+  if(!point)return;
+  const controller=new AbortController();
+  const query=new URLSearchParams({lat:String(point.latitude),lon:String(point.longitude)});
+  const timer=setTimeout(()=>{
+   void fetch('/api/reverse-address?'+query,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(8000)])})
+    .then(async response=>{
+     if(!response.ok)throw new Error();
+     const suggestion:Suggestion=await response.json();
+     if(controller.signal.aborted)return;
+     result=suggestion;
+     if(suggestion.address&&!addressEdited)address=suggestion.address;
+    }).catch(()=>{if(!controller.signal.aborted)lookupFailed=true;})
+    .finally(()=>{if(!controller.signal.aborted)loading=false;});
+  },250);
+  return()=>{clearTimeout(timer);controller.abort();};
  });
 </script>
-<Dialog {open} onOpenChange={event=>{if(!pending){open=event.open;error='';if(!open&&lookupState==='loading'){lookup?.abort();lookupState='idle';}}}} closeOnInteractOutside={false} initialFocusEl={()=>matchMedia('(max-width:700px)').matches?document.querySelector<HTMLElement>('.box-dialog'):document.getElementById('box-address')}>
+<Dialog {open} onOpenChange={event=>{if(!pending){open=event.open;error='';}}} closeOnInteractOutside={false} initialFocusEl={()=>matchMedia('(max-width:700px)').matches?document.querySelector<HTMLElement>('.box-dialog'):document.getElementById('box-address')}>
  <Dialog.Trigger class="btn primary"><Plus size={18}/>Ajouter une boîte</Dialog.Trigger>
  {#if open}<Portal>
   <Dialog.Backdrop class="box-backdrop"/>
@@ -98,26 +62,21 @@
       <div class="box-fields">
        <label class="label" for="box-address">Adresse</label><input class="input" id="box-address" name="address" bind:value={address} oninput={()=>addressEdited=true} required maxlength="120" autocomplete="street-address" placeholder="12, rue des Lilas" aria-describedby="address-help"/>
        <p id="address-help" class="box-field-note" role="status">
-        {#if lookupState==='loading'}Recherche d’une adresse à proximité…
-        {:else if lookupState==='found'&&!addressEdited}Adresse approximative suggérée (IGN), à vérifier.
-        {:else if lookupState==='none'}Aucune adresse proche trouvée. Vous pouvez la saisir.
-        {:else if lookupState==='error'}Suggestion indisponible. Vous pouvez saisir l’adresse.
+        {#if result?.address&&!addressEdited}Adresse approximative suggérée (IGN), à vérifier.
+        {:else if result?.addressUnavailable||lookupFailed}Suggestion d’adresse indisponible. Vous pouvez la saisir.
+        {:else if result&&!result.address}Aucune adresse proche trouvée. Vous pouvez la saisir.
         {/if}
        </p>
-        <Combobox {collection} value={cityId?[cityId]:[]} inputValue={cityInput} disabled={citiesLoading||!!citiesError||!communes.length} openOnClick allowCustomValue={false} positioning={{sameWidth:true,placement:'bottom-start',gutter:4}} onInputValueChange={event=>{cityInput=event.inputValue;if(event.reason==='input-change'||event.reason==='clear-trigger'){cityEdited=true;cityFilter=event.inputValue;cityId='';}}} onValueChange={event=>{cityEdited=true;cityId=event.value[0]??'';const city=communes.find(city=>String(city.id)===cityId);if(city){cityInput=cityLabel(city);cityFilter='';}}}>
-         <Combobox.Label class="label">Commune</Combobox.Label><Combobox.Control class="city-control"><Combobox.Input class="input" placeholder="Commune ou code postal" aria-describedby="commune-help"/><Combobox.Trigger class="btn city-trigger" aria-label="Afficher les communes"><CaretDown size={16}/></Combobox.Trigger></Combobox.Control>
-         <Portal disabled><Combobox.Positioner class="city-positioner"><Combobox.Content class="card choice-list city-options">{#each matchingCities as city (city.id)}<Combobox.Item item={city} class="choice-item"><Combobox.ItemText>{cityLabel(city)}</Combobox.ItemText><Combobox.ItemIndicator><Check size={16}/></Combobox.ItemIndicator></Combobox.Item>{:else}<p class="city-empty">Aucune commune trouvée</p>{/each}</Combobox.Content></Combobox.Positioner></Portal>
-        </Combobox>
-       <input type="hidden" name="communeId" value={cityId}/>
-       <p id="commune-help" class="box-field-note" role="status">
-        {#if citiesLoading}Chargement des communes…
-        {:else if citiesError}{citiesError}
-        {:else if !communes.length}Aucune commune dans le référentiel.
-        {:else if suggestion&&!suggestedCity}La commune suggérée n’a pas pu être identifiée dans le référentiel.
-        {:else}Choisissez une commune de la liste.
+       <p class="box-field-note commune-status" role="status">
+        {#if loading}Vérification de la commune…
+        {:else if lookupFailed||result?.communeUnavailable}La commune n’a pas pu être vérifiée. Réessayez ou déplacez le repère.
+        {:else if result?.commune}Commune détectée : <strong>{result.commune}</strong>
+        {:else if result}Aucune commune du catalogue pour ce point. Déplacez le repère.
+        {:else if latitude!==undefined||longitude!==undefined}Saisissez deux coordonnées GPS valides.
+        {:else}Placez le repère pour déterminer la commune.
         {/if}
        </p>
-       {#if citiesError}<button type="button" class="btn" onclick={()=>retry++}>Réessayer</button>{/if}
+       {#if lookupFailed||result?.communeUnavailable||result?.addressUnavailable}<button type="button" class="btn" onclick={()=>retry++}>Réessayer la recherche</button>{/if}
        <label class="label" for="box-reference">Référence <span class="optional">facultatif</span></label><input class="input" id="box-reference" name="reference" bind:value={reference} maxlength="50" placeholder="Ex. Boîte du square"/>
        <div class="position-summary" aria-live="polite"><MapPin size={18}/><span>{position?'Emplacement choisi':'Emplacement à choisir'}</span></div>
        <details class="manual-coordinates"><summary>Saisir les coordonnées</summary><div class="box-coordinates"><div><label class="label" for="box-latitude">Latitude</label><input class="input" id="box-latitude" type="number" step="any" min="-85.051128" max="85.051128" bind:value={latitude} oninput={event=>{latitude=Number.isNaN(event.currentTarget.valueAsNumber)?undefined:event.currentTarget.valueAsNumber;updateCoordinates();}} placeholder="48.8566"/></div><div><label class="label" for="box-longitude">Longitude</label><input class="input" id="box-longitude" type="number" step="any" min="-180" max="180" bind:value={longitude} oninput={event=>{longitude=Number.isNaN(event.currentTarget.valueAsNumber)?undefined:event.currentTarget.valueAsNumber;updateCoordinates();}} placeholder="2.3522"/></div></div></details>
@@ -125,7 +84,7 @@
       </div>
       <div class="box-map"><LocationPicker bind:value={position} {center} onChange={setPosition}/></div>
      </div>
-     <div class="box-form-footer">{#if error}<p class="error" role="alert">{error}</p>{/if}<div><Dialog.CloseTrigger class="btn box-cancel" disabled={pending}>Annuler</Dialog.CloseTrigger><button class="btn primary" disabled={pending||!valid||citiesLoading}>{pending?'Enregistrement…':'Ajouter la boîte'}</button></div></div>
+     <div class="box-form-footer">{#if error}<p class="error" role="alert">{error}</p>{/if}<div><Dialog.CloseTrigger class="btn box-cancel" disabled={pending}>Annuler</Dialog.CloseTrigger><button class="btn primary" disabled={pending||!valid}>{pending?'Enregistrement…':'Ajouter la boîte'}</button></div></div>
     </form>
    </Dialog.Content>
   </Dialog.Positioner>
@@ -138,7 +97,7 @@
  .box-dialog-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:24px;border-bottom:1px solid var(--border)}:global(.box-title){margin:0;font-family:Manrope,sans-serif;font-size:24px;font-weight:500;letter-spacing:-.4px;line-height:1.3}:global(.box-description){color:var(--text-secondary);font-size:13px;line-height:1.6;margin:8px 0 0}
  .box-form-body{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:24px;padding:24px}.box-fields{min-width:0}.box-fields :global(.label){display:block;font-size:13px;font-weight:500;color:var(--text);margin:20px 0 8px}.box-fields>:global(.label:first-child){margin-top:0}.box-fields :global(.input){display:block;width:100%;min-height:44px;margin:0;padding:12px;border:1px solid var(--field-border);border-radius:8px;background:var(--field);color:var(--text);font-size:14px;line-height:20px;box-shadow:none}.box-fields :global(.input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
  .box-field-note{font-size:12px;color:var(--muted);line-height:1.5;margin:8px 0 0}.optional{font-size:12px;color:var(--muted);font-weight:400;margin-left:4px}.box-map{min-width:0;min-height:360px}
- :global(.city-control){position:relative}:global(.city-control .input){padding-right:44px}:global(.city-trigger){position:absolute;right:2px;top:2px;display:grid;place-items:center;width:40px;height:40px;padding:0;color:var(--muted);background:transparent;box-shadow:none}:global(.city-positioner){z-index:85}:global(.city-options){max-height:240px;width:100%}:global(.city-options .choice-item){align-items:flex-start;font-size:13px}:global(.city-options [data-part=item-indicator]){color:var(--accent);flex-shrink:0}.city-empty{padding:8px 12px;margin:0;font-size:13px;color:var(--muted)}
+ .commune-status{margin-top:16px;color:var(--text-secondary)}
  .position-summary{display:flex;align-items:center;gap:8px;color:var(--accent);padding:16px 0 8px;margin-top:16px;font-size:13px}.manual-coordinates{margin-top:8px;font-size:12px;color:var(--text-secondary)}.manual-coordinates summary{cursor:pointer;width:fit-content;padding:8px 0}.box-coordinates{display:grid;grid-template-columns:1fr 1fr;gap:12px}.box-coordinates .label{margin-top:8px}
  .box-form-footer{padding:16px 24px;border-top:1px solid var(--border);background:var(--surface);position:sticky;bottom:0;z-index:2}.box-form-footer>div{display:flex;align-items:center;justify-content:flex-end;gap:12px}.box-form-footer .error{margin:0 0 16px}.box-form-footer :global(.btn){min-height:44px;padding:12px 20px;font-size:13px;font-weight:500;line-height:20px;border-radius:8px;box-shadow:none}.box-form-footer :global(.box-cancel){border:1px solid var(--border);background:transparent;color:var(--text-secondary)}.box-form-footer .primary:disabled{opacity:1;background:var(--surface-raised);color:var(--muted);cursor:default}
  @media(max-width:700px){:global(.box-positioner){padding:12px}:global(.box-dialog){max-height:calc(100svh - 24px)}.box-dialog-heading{padding:20px;gap:12px}.box-form-body{display:flex;flex-direction:column;gap:20px;padding:20px}.box-map{order:-1;min-height:280px}.box-fields :global(.input){font-size:16px}.box-form-footer{padding:16px 20px}.box-form-footer>div{justify-content:space-between}.box-form-footer .primary{flex:1}}

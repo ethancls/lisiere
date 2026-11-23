@@ -14,8 +14,9 @@
  function locate(){
   if(!navigator.geolocation){locationError='La géolocalisation est indisponible. Choisissez le point sur la carte.';return;}
   locating=true;locationError='';
+  const initial=value;
   navigator.geolocation.getCurrentPosition(position=>{
-   locating=false;applyPosition?.({latitude:position.coords.latitude,longitude:position.coords.longitude},true);
+   locating=false;if(value===initial)applyPosition?.({latitude:position.coords.latitude,longitude:position.coords.longitude},true);
   },failure=>{locating=false;locationError=failure.code===1?'La localisation est bloquée. Autorisez-la dans votre navigateur ou placez le repère sur la carte.':'Position indisponible. Placez le repère sur la carte.';},{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
  }
  onMount(()=>{

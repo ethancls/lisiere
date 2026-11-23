@@ -3,7 +3,7 @@ import {z} from 'zod';
 const ignResponse=z.object({
  features:z.array(z.object({
   properties:z.object({
-   type:z.string(),distance:z.number().nonnegative(),citycode:z.string(),
+   type:z.string(),distance:z.number().nonnegative(),
    street:z.string().trim().optional(),name:z.string().trim().optional(),
    housenumber:z.string().trim().optional()
   })
@@ -22,6 +22,6 @@ export async function reverseAddress(latitude:number,longitude:number,request=gl
  if(!street)return null;
  const number=hit.type==='housenumber'?hit.housenumber:undefined;
  const address=number?`${number}, ${street}`:street;
- if(address.length>120||address.includes('\0')||!/^\d{5}$/.test(hit.citycode))return null;
- return {address,inseeCode:hit.citycode};
+ if(address.length>120||address.includes('\0'))return null;
+ return address;
 }

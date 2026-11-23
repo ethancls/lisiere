@@ -10,9 +10,9 @@ try{
  const homepage=await fetch('http://localhost:5173/',{headers:{cookie}});assert.equal(homepage.status,200);const html=await homepage.text();assert.ok(!html.includes('Le kiosque des histoires'));
  const original=await c.query('select password_hash from bdd_clap.lisiere_account where user_id=$1',[Number(user.id)]);assert.notEqual(original.rows[0].password_hash,password);
  const action=body=>fetch('http://localhost:5173/?/add',{method:'POST',headers:{cookie,origin:'http://localhost:5173',accept:'application/json','x-sveltekit-action':'true','content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)});
- const city=(await c.query('select id_commune from bdd_clap.communes order by id_commune limit 1')).rows[0].id_commune;
- const values={address:'12 rue du test',reference,communeId:String(city),latitude:'48.8566',longitude:'2.3522'};
- assert.equal((await action({...values,communeId:'-1'})).status,400);
+ const city=(await c.query("select id_commune from bdd_clap.communes where code_insee='75056'")).rows[0].id_commune;
+ const values={address:'12 rue du test',reference,communeId:'-1',latitude:'48.8566',longitude:'2.3522'};
+ assert.equal((await action({...values,latitude:'0',longitude:'0'})).status,400);
  assert.equal((await action({...values,latitude:'200'})).status,400);assert.equal((await action({...values,latitude:'85.051129'})).status,400);assert.equal((await action({...values,latitude:''})).status,400);assert.equal((await action({...values,reference:'x'.repeat(51)})).status,400);
  assert.equal((await action({...values,address:'x'.repeat(121)})).status,400);
  const addition=await action(values);assert.equal(addition.status,200);const added=parseActionData((await addition.json()).data);assert.equal(added.success,true);assert.equal(added.box.name,reference);assert.equal(added.box.latitude,Number(values.latitude));assert.equal(added.box.longitude,Number(values.longitude));
