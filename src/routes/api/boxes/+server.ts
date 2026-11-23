@@ -1,6 +1,6 @@
 import {json,error} from '@sveltejs/kit';import type {RequestHandler} from './$types';
 import {queryBoxes} from '#lib/server/postgres/boxes.ts';
-import {countBoxFilters,emptyBoxFilters,type BoxFilters} from '#lib/types/boxes.ts';
+import {countBoxFilters,emptyBoxFilters,maxStreetLength,type BoxFilters} from '#lib/types/boxes.ts';
 import {maxBookTitleLength,maxBookGenreLength} from '#lib/types/books.ts';
 export const GET:RequestHandler=async({url,locals})=>{
  if(!locals.user)error(401,'Connexion requise.');
@@ -19,7 +19,9 @@ export const GET:RequestHandler=async({url,locals})=>{
   };
   const books=p.get('books')??'all',title=(p.get('title')??'').trim(),genre=(p.get('genre')??'').trim();
   if((books!=='all'&&books!=='with'&&books!=='without')||[...title].length>maxBookTitleLength||[...genre].length>maxBookGenreLength||title.includes('\0')||genre.includes('\0'))error(400,'Filtres de livres invalides.');
-  filters={commune:id('commune'),department:id('department'),books,title,genre} satisfies BoxFilters;
+  const street=(p.get('street')??'').trim();
+  if(street.length>maxStreetLength||street.includes('\0'))error(400,'Nom de rue invalide.');
+  filters={street,commune:id('commune'),department:id('department'),books,title,genre} satisfies BoxFilters;
  }
  if(mode==='map'&&(!countBoxFilters(filters)||['west','east','south','north'].some(key=>p.has(key)))){
   if(!['west','east','south','north'].every(key=>p.has(key)&&p.get(key)!==''))error(400,'Zone géographique requise.');

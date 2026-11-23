@@ -2,7 +2,7 @@
  import CaretDown from 'phosphor-svelte/lib/CaretDownIcon';
  import FunnelSimple from 'phosphor-svelte/lib/FunnelSimpleIcon';
  import {maxBookTitleLength,maxBookGenreLength} from '#lib/types/books.ts';
- import {countBoxFilters,emptyBoxFilters,type BoxFilters,type FilterCommune} from '#lib/types/boxes.ts';
+ import {countBoxFilters,emptyBoxFilters,maxStreetLength,type BoxFilters,type FilterCommune} from '#lib/types/boxes.ts';
 
  let {filters,onChange}:{filters:BoxFilters;onChange:(filters:BoxFilters)=>void}=$props();
  let open=$state(false),options=$state<FilterCommune[]|null>(null),failed=$state(false),retry=$state(0);
@@ -45,6 +45,9 @@
     {#each communes as item (item.id)}<option value={item.id}>{item.name} · {item.postalCode}</option>{/each}
    </select>
   </label>
+  <label>Nom de rue
+   <input class="input" value={filters.street} maxlength={maxStreetLength} placeholder="Ex. République" oninput={event=>onChange({...filters,street:event.currentTarget.value})}/>
+  </label>
   <label>Livres dans les boîtes
    <select class="input" value={filters.books} onchange={event=>onChange({...filters,books:event.currentTarget.value as BoxFilters['books']})}>
     <option value="all">Toutes les boîtes</option><option value="with">Avec des livres</option><option value="without">Sans livre</option>
@@ -70,7 +73,7 @@
  summary :global(.caret){margin-left:auto}
  details[open] summary :global(.caret){transform:rotate(180deg)}
  .filter-count{padding:2px 7px;border-radius:99px;background:var(--accent-surface);color:var(--accent);font-size:12px}
- .fields{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) auto;align-items:end;gap:10px;padding:0 12px 12px}
+ .fields{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) auto;align-items:end;gap:10px;padding:0 12px 12px}
  label{display:grid;gap:4px;min-width:0;margin:0;font-size:12px;color:var(--text-secondary)}
  .input,.reset{min-width:0;min-height:44px;padding:6px 8px;font-size:13px}
  select.input{border:1px solid var(--field-border)}

@@ -28,6 +28,8 @@ try{
   SELECT label,'Rue de la République',$1,public.ST_Transform(public.ST_SetSRID(public.ST_MakePoint(lon,45.76),4326),2154)
   FROM (VALUES ('Boîte A',4.83),('Boîte B',4.84),('Boîte C',4.85)) AS x(label,lon) RETURNING id_boite`,[commune]);
  const [a,b,c]=rows.map(row=>row.id_boite);
+ await client.query('UPDATE bdd_clap.boites SET adresse=$1 WHERE id_boite=$2',['Rue des Écoles '+suffix,a]);
+ await client.query('UPDATE bdd_clap.boites SET adresse=$1 WHERE id_boite=1',['Rue des E\u0301coles '+suffix]);
  const deposit=async(id,title,genre)=>{
   const res=await fetch(new URL('/api/boxes/'+id+'/books',base),{
    method:'POST',headers:{cookie,Origin:base.origin,'Content-Type':'application/json'},
@@ -59,6 +61,14 @@ try{
   await query(invalid,400);
  }
  await expectBoxes({commune},[a,b,c]);
+ const street='  ECOLES '+suffix+'  ';
+ await expectBoxes({street},[a,1]);
+ await expectBoxes({commune,street},[a]);
+ await expectBoxes({commune,street:''},[a,b,c]);
+ await expectBoxes({street:' ',west:4.82,east:4.86,south:45.75,north:45.77},[a,b,c]);
+ await expectBoxes({commune,street:'%_'},[]);
+ await query({street:'x'.repeat(121)},400);
+ await query({street:'x\0y'},400);
  await expectBoxes({department},[a,b,c]);
  await expectBoxes({commune,department:1},[]);
  await expectBoxes({commune,books:'with'},[a,b]);
@@ -70,6 +80,7 @@ try{
  await expectBoxes({commune,title:"' OR 'a'='a"},[]);
  await expectBoxes({commune,west:4.834,east:4.846,south:45.75,north:45.77},[b]);
  await expectBoxes({mode:'table',q:'Boîte C',books:'with'},[c]);
+ await expectBoxes({mode:'table',q:'Boîte C',street},[c]);
  const choices=await fetch(new URL('/api/communes',base),{headers:{cookie}});
  assert.equal(choices.status,200);
  assert.deepEqual((await choices.json()).find(item=>item.id===commune),{

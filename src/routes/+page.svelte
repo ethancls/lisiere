@@ -22,6 +22,7 @@
   const params=new URLSearchParams();
   if(filters.commune!==null)params.set('commune',String(filters.commune));
   if(filters.department!==null)params.set('department',String(filters.department));
+  if(filters.street.trim())params.set('street',filters.street.trim());
   if(filters.books!=='all')params.set('books',filters.books);
   if(filters.title.trim())params.set('title',filters.title.trim());
   if(filters.genre.trim())params.set('genre',filters.genre.trim());
