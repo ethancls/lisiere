@@ -4,11 +4,16 @@ export type BoxBook = {
  author: string | null;
  isbn: string | null;
  info: string | null;
+ genre: string | null;
 };
 
+export const maxBookTitleLength = 150;
+export const maxBookGenreLength = 80;
+
 export const bookFields = [
- {name: 'title', label: 'Titre', max: 150, required: true},
+ {name: 'title', label: 'Titre', max: maxBookTitleLength, required: true},
  {name: 'author', label: 'Auteur', max: 150, required: true},
+ {name: 'genre', label: 'Genre', max: maxBookGenreLength, required: false},
  {name: 'isbn', label: 'ISBN', max: 13, required: false},
  {name: 'info', label: 'Informations', max: 200, required: false}
 ] as const;

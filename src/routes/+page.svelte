@@ -5,8 +5,9 @@
  import {onMount} from 'svelte';
  import Map from '#lib/components/Map.svelte';import AddBox from '#lib/components/AddBox.svelte';
  import PageSizeSelect from '#lib/components/PageSizeSelect.svelte';
+ import MapFilters from '#lib/components/MapFilters.svelte';
  import CaretLeft from 'phosphor-svelte/lib/CaretLeftIcon';import CaretRight from 'phosphor-svelte/lib/CaretRightIcon';
- import type {Box,BoxPage,Bounds} from '#lib/types/boxes.ts';
+ import {countBoxFilters,emptyBoxFilters,type Box,type BoxFilters,type BoxPage,type Bounds} from '#lib/types/boxes.ts';
  import MapPin from 'phosphor-svelte/lib/MapPinIcon';import Table from 'phosphor-svelte/lib/TableIcon';import X from 'phosphor-svelte/lib/XIcon';import ArrowUpRight from 'phosphor-svelte/lib/ArrowUpRightIcon';import ArrowsDownUp from 'phosphor-svelte/lib/ArrowsDownUpIcon';
  let {data,form}=$props();let mounted=$state(false),view=$state('map'),search=$state(''),selectedBox=$state<Box|null>(null),focusRequest=$state(0);
  let bounds=$state<Bounds>();let resultsPanel=$state<HTMLElement>();let camera=$state({center:[2.35,48.862] as [number,number],zoom:12.4});
@@ -14,28 +15,56 @@
  let mapData=$state<BoxPage>({items:[],total:0,totalAll:0,page:1,pages:1,pageSize:1000,truncated:false});
  let tableData=$state<BoxPage>({items:[],total:0,totalAll:0,page:1,pages:1,pageSize:25,truncated:false});
  let loading=$state(true),loadError=$state('');
+ let filters=$state<BoxFilters>({...emptyBoxFilters}),appliedKey=$state(''),fitRequest=$state(0),depositNotice=$state('');
+ let lastFitKey='',depositedBoxId:string|null=null;
+ const filtered=$derived(countBoxFilters(filters)>0);
+ const filterKey=$derived.by(()=>{
+  const params=new URLSearchParams();
+  if(filters.commune!==null)params.set('commune',String(filters.commune));
+  if(filters.department!==null)params.set('department',String(filters.department));
+  if(filters.books!=='all')params.set('books',filters.books);
+  if(filters.title.trim())params.set('title',filters.title.trim());
+  if(filters.genre.trim())params.set('genre',filters.genre.trim());
+  return params.toString();
+ });
  const number=new Intl.NumberFormat('fr-FR');
  const active=$derived(view==='map'?mapData:tableData);
  const current=$derived(selectedBox);
- const visibleBoxes=$derived(mapData.items.slice(0,100));
+ const visibleBoxes=$derived(appliedKey===filterKey&&!loadError?mapData.items:[]);
+ function changeFilters(next:BoxFilters){
+  filters=next;selectedBox=null;depositNotice='';depositedBoxId=null;
+  if(!countBoxFilters(next)){lastFitKey='';fitRequest=0;}
+ }
  function order(key:'name'|'city'|'address'){if(sort===key)ascending=!ascending;else{sort=key;ascending=true;}page=1;}
- function locate(box:Box){selectedBox=box;focusRequest++;view='map';}
+ function locate(box:Box){if(view==='table')changeFilters({...emptyBoxFilters});selectedBox=box;focusRequest++;view='map';}
  onMount(()=>{mounted=true;});
  $effect(()=>{
   if(!mounted)return;
-  const mode=view,q=search.trim(),region=bounds,requestedPage=page,size=pageSize,sortKey=sort,direction=ascending?'asc':'desc',revision=refresh;
+  const mode=view,key=mode==='map'?filterKey:'',region=mode==='map'&&!key?bounds:undefined;
+  const q=mode==='table'?search.trim():'',requestedPage=mode==='table'?page:1,size=mode==='table'?pageSize:25;
+  const sortKey=mode==='table'?sort:'name',direction=mode==='table'&&!ascending?'desc':'asc',revision=refresh;
   void revision;
-  if(mode==='map'&&!region){loading=true;return;}
+  if(mode==='map'&&!key&&!region){loading=true;return;}
   const controller=new AbortController();loading=true;loadError='';
   const timer=setTimeout(async()=>{
    const params=new URLSearchParams({mode,q,page:String(requestedPage),pageSize:String(size),sort:sortKey,direction});
+   for(const [name,value]of new URLSearchParams(key))params.set(name,value);
    if(mode==='map'&&region)for(const [key,value]of Object.entries(region))params.set(key,String(value));
    try{
     const response=await fetch('/api/boxes?'+params,{signal:controller.signal});
+    if(controller.signal.aborted)return;
     if(response.status===401){location.href='/login';return;}
     if(!response.ok)throw new Error('Les lieux n’ont pas pu être chargés.');
     const result:BoxPage=await response.json();if(controller.signal.aborted)return;
-    if(mode==='map')mapData=result;else tableData=result;
+    if(mode==='map'){
+     mapData=result;appliedKey=key;
+     if(key&&key!==lastFitKey){lastFitKey=key;if(result.items.length)fitRequest++;}
+     if(key&&selectedBox&&!result.items.some(box=>box.id===selectedBox?.id)){
+      if(depositedBoxId===selectedBox.id)depositNotice='Livre ajouté. Cette boîte ne correspond plus aux filtres.';
+      selectedBox=null;
+     }
+     depositedBoxId=null;
+    }else tableData=result;
    }catch(e){if(!controller.signal.aborted)loadError=e instanceof Error?e.message:'Chargement indisponible.';}
    finally{if(!controller.signal.aborted)loading=false;}
   },200);
@@ -44,14 +73,16 @@
 </script>
 <svelte:head><title>CLAP | {view==='map'?'Carte':'Tableau'}</title></svelte:head>
 <main class="home">
- <AppHeader user={data.user} bind:search onSearch={()=>page=1}>{#snippet actions()}<AddBox center={camera.center} onSaved={box=>{search='';refresh++;locate(box);}}/>{/snippet}</AppHeader>
- <div class="home-toolbar"><div class="home-context"><h1>Boîtes à livres</h1><span>{#if loading}<LoadingSkeleton variant="count" label="Chargement du nombre de lieux"/>{:else}{number.format(active.items.length)} lieu{active.items.length!==1?'x':''} affiché{active.items.length!==1?'s':''} sur {number.format(active.totalAll)}{/if}</span></div><div class="view-control" aria-label="Mode d’affichage"><button class:chosen={view==='map'} aria-pressed={view==='map'} onclick={()=>view='map'}><MapPin size={18}/>Carte</button><button class:chosen={view==='table'} aria-pressed={view==='table'} onclick={()=>view='table'}><Table size={18}/>Tableau</button></div></div>
+ <AppHeader user={data.user} showSearch={view==='table'} bind:search onSearch={()=>page=1}>{#snippet actions()}<AddBox center={camera.center} onSaved={box=>{changeFilters({...emptyBoxFilters});search='';refresh++;locate(box);}}/>{/snippet}</AppHeader>
+ <div class="home-toolbar"><div class="home-context"><h1>Boîtes à livres</h1><span>{#if loading}<LoadingSkeleton variant="count" label="Chargement du nombre de lieux"/>{:else if loadError}Résultats indisponibles{:else if view==='map'&&filtered}{number.format(active.total)} boîte{active.total===1?'':'s'} correspondante{active.total===1?'':'s'}{#if active.truncated} · {number.format(active.items.length)} affichées{/if}{:else}{number.format(active.items.length)} lieu{active.items.length!==1?'x':''} affiché{active.items.length!==1?'s':''} sur {number.format(active.totalAll)}{/if}</span></div><div class="view-control" aria-label="Mode d’affichage"><button class:chosen={view==='map'} aria-pressed={view==='map'} onclick={()=>view='map'}><MapPin size={18}/>Carte</button><button class:chosen={view==='table'} aria-pressed={view==='table'} onclick={()=>view='table'}><Table size={18}/>Tableau</button></div></div>
+ {#if view==='map'}<MapFilters {filters} onChange={changeFilters}/>{/if}
  {#if form?.success}<div class="home-success" role="status">Boîte ajoutée.</div>{/if}
+ {#if view==='map'&&depositNotice&&!current}<div class="home-success" role="status">{depositNotice}</div>{/if}
  <div class="home-content" class:table-view={view==='table'}>
  {#if view==='map'}
-  <Map boxes={mapData.items} active={current} onSelect={locate} {focusRequest} panel={resultsPanel} bind:camera onBounds={value=>bounds=value}/>
-  <section class="map-results" class:has-selection={!!current} aria-label="Résultats" bind:this={resultsPanel}><div class="results-heading"><h2>Dans cette zone</h2><span aria-live="polite">{#if loading}<LoadingSkeleton variant="count" label="Chargement des lieux"/>{:else}{number.format(mapData.total)}{/if}</span></div><div class="results-scroll" aria-busy={loading}>{#if loading}<div aria-hidden="true">{#each Array(5) as _}<LoadingSkeleton variant="list" announce={false}/>{/each}</div>{:else if loadError}<div class="empty-results" role="alert">{loadError} <button onclick={()=>refresh++}>Réessayer</button></div>{:else}{#each visibleBoxes as b}<button class="result-row" class:chosen={current?.id===b.id} aria-pressed={current?.id===b.id} onclick={()=>locate(b)}><span class="result-pin"><MapPin size={19}/></span><span class="result-text"><strong>{b.name}</strong><span>{b.address} · {b.city}</span></span><ArrowUpRight size={15}/></button>{:else}<p class="empty-results">Aucune boîte dans cette zone. Déplacez la carte ou élargissez la recherche.</p>{/each}{#if mapData.items.length>100}<p class="empty-results">100 lieux affichés dans la liste. Zoomez pour préciser la zone.</p>{/if}{#if mapData.truncated}<p class="empty-results">Zone étendue : les points sont limités à 1 000. Zoomez pour tous les voir.</p>{/if}{/if}</div>
-  {#if current}<div class="result-detail"><div><strong>{current.name}</strong><button aria-label="Fermer la fiche" onclick={()=>selectedBox=null}><X size={16}/></button></div>{#if current.description}<p>{current.description}</p>{/if}<p class="detail-address">{current.address}<br/>{current.postalCode} {current.city}</p>{#if current.department}<p class="detail-department">{current.department}{current.departmentCode?' · '+current.departmentCode:''}</p>{/if}<button class="btn detail-recenter" onclick={()=>locate(current)}><MapPin size={16}/>Recentrer sur la boîte</button><a target="_blank" rel="noopener noreferrer" href={'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(current.latitude+','+current.longitude)}>Ouvrir avec Google Maps <ArrowUpRight size={16}/></a>{#key current.id}<BoxBooks boxId={current.id}/>{/key}</div>{/if}
+  <Map boxes={visibleBoxes} active={loadError?null:current} onSelect={locate} {focusRequest} fitRequest={filtered?fitRequest:0} panel={resultsPanel} bind:camera onBounds={value=>bounds=value}/>
+  <section class="map-results" class:has-selection={!!current} aria-label="Résultats" bind:this={resultsPanel}><div class="results-heading"><h2>{filtered?'Boîtes filtrées':'Dans cette zone'}</h2><span aria-live="polite">{#if loading}<LoadingSkeleton variant="count" label="Chargement des lieux"/>{:else if loadError}—{:else}{number.format(mapData.total)}{/if}</span></div><div class="results-scroll" aria-busy={loading}>{#if loading}<div aria-hidden="true">{#each Array(5) as _}<LoadingSkeleton variant="list" announce={false}/>{/each}</div>{:else if loadError}<div class="empty-results" role="alert">{loadError} <button onclick={()=>refresh++}>Réessayer</button></div>{:else}{#each visibleBoxes as b}<button class="result-row" class:chosen={current?.id===b.id} aria-pressed={current?.id===b.id} onclick={()=>locate(b)}><span class="result-pin"><MapPin size={19}/></span><span class="result-text"><strong>{b.name}</strong><span>{b.address} · {b.city}</span></span><ArrowUpRight size={15}/></button>{:else}<p class="empty-results">{filtered?'Aucune boîte ne correspond à ces filtres.':'Aucune boîte dans cette zone. Déplacez la carte.'}</p>{/each}{#if mapData.truncated}<p class="empty-results">Affichage limité à 1 000 boîtes. {filtered?'Précisez les filtres pour réduire les résultats.':'Zoomez pour réduire la zone.'}</p>{/if}{/if}</div>
+  {#if current}<div class="result-detail"><div><strong>{current.name}</strong><button aria-label="Fermer la fiche" onclick={()=>selectedBox=null}><X size={16}/></button></div>{#if current.description}<p>{current.description}</p>{/if}<p class="detail-address">{current.address}<br/>{current.postalCode} {current.city}</p>{#if current.department}<p class="detail-department">{current.department}{current.departmentCode?' · '+current.departmentCode:''}</p>{/if}<button class="btn detail-recenter" onclick={()=>locate(current)}><MapPin size={16}/>Recentrer sur la boîte</button><a target="_blank" rel="noopener noreferrer" href={'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(current.latitude+','+current.longitude)}>Ouvrir avec Google Maps <ArrowUpRight size={16}/></a>{#key current.id}<BoxBooks boxId={current.id} onDeposited={()=>{depositedBoxId=current.id;refresh++;}}/>{/key}</div>{/if}
   </section>
  {:else}
   <div class="home-table-scroll"><table class="home-table"><caption class="sr-only">Boîtes à livres</caption><thead><tr>{#each [{key:'name',label:'Nom'},{key:'address',label:'Adresse'},{key:'city',label:'Ville'}] as column}<th scope="col" aria-sort={sort===column.key?(ascending?'ascending':'descending'):'none'}><button onclick={()=>order(column.key as 'name'|'city'|'address')}>{column.label}<ArrowsDownUp size={14}/></button></th>{/each}<th scope="col"><span class="sr-only">Action</span></th></tr></thead><tbody aria-busy={loading}>{#if loading}{#each Array(6) as _}<tr aria-hidden="true"><td><LoadingSkeleton variant="table-name" announce={false}/></td><td><LoadingSkeleton variant="table-address" announce={false}/></td><td><LoadingSkeleton variant="table-city" announce={false}/></td><td><LoadingSkeleton variant="table-action" announce={false}/></td></tr>{/each}<tr class="sr-only"><td colspan="4"><span role="status">Chargement des lieux…</span></td></tr>{:else if loadError}<tr><td colspan="4" class="table-empty"><div role="alert">{loadError} <button onclick={()=>refresh++}>Réessayer</button></div></td></tr>{:else}{#each tableData.items as b,i}<tr><td><span class="row-number">{number.format((tableData.page-1)*tableData.pageSize+i+1)}</span><strong>{b.name}</strong></td><td>{b.address}</td><td>{b.city}</td><td><button class="table-map-link" aria-label={'Localiser '+b.name} onclick={()=>locate(b)}><MapPin size={18}/><span>Localiser</span></button></td></tr>{:else}<tr><td colspan="4" class="table-empty">Aucun résultat. Essayez une autre recherche.</td></tr>{/each}{/if}</tbody></table></div>

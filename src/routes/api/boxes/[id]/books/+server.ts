@@ -28,7 +28,7 @@ export const POST: RequestHandler = async ({params, locals, request, url}) => {
  const id = boxId(params.id);
  const input: unknown = await request.json().catch(() => error(400, 'Formulaire invalide.'));
  if (!input || typeof input !== 'object' || Array.isArray(input)) error(400, 'Formulaire invalide.');
- const parsed = {title: '', author: '', isbn: '', info: ''};
+ const parsed = {title: '', author: '', isbn: '', info: '', genre: ''};
  for (const {name, label, max, required} of bookFields) {
   const value = (input as Record<string, unknown>)[name];
   if (value === undefined && !required) continue;
@@ -38,7 +38,7 @@ export const POST: RequestHandler = async ({params, locals, request, url}) => {
   if ([...parsed[name]].length > max) error(400, `${label} : ${max} caractères maximum.`);
  }
  const book = await depositBook(pool, id, Number(locals.user.id), {
-  ...parsed, isbn: parsed.isbn || null, info: parsed.info || null
+  ...parsed, isbn: parsed.isbn || null, info: parsed.info || null, genre: parsed.genre || null
  }).catch(() => {
   console.error('Book deposit failed');
   error(503, 'Le dépôt n’a pas pu être enregistré. Rechargez la fiche avant de réessayer.');

@@ -21,7 +21,7 @@ try {
  const {user} = await auth.json();
  const cookie = auth.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
  assert.ok(cookie);
- const book = {title: `Le jardin ${suffix}`, author: 'Camille', isbn: '9781234567890', info: 'Un roman'};
+ const book = {title: `Le jardin ${suffix}`, author: 'Camille', isbn: '9781234567890', info: 'Un roman', genre:'Roman'};
  const request = async (id, {data, signedIn = true, origin = base.origin} = {}) => {
   const headers = signedIn ? {cookie} : {};
   if (data) Object.assign(headers, {'Content-Type': 'application/json', Origin: origin});
@@ -44,10 +44,10 @@ try {
  assert.equal((await request(99999)).status, 404);
  assert.equal((await request(99999, {data: book})).status, 404);
  for (const fields of [{title: ' '}, {author: ''}, {title: 'x'.repeat(151)}, {author: 'x'.repeat(151)},
-  {isbn: '1'.repeat(14)}, {info: 'x'.repeat(201)}, {title: 1}]) {
+  {isbn: '1'.repeat(14)}, {info: 'x'.repeat(201)}, {genre:'x'.repeat(81)}, {title: 1}]) {
   const result = await request(1, {data: {...book, ...fields}});
   assert.equal(result.status, 400);
-  assert.match(result.data.message, /^(Titre|Auteur|ISBN|Informations) : /);
+  assert.match(result.data.message, /^(Titre|Auteur|ISBN|Informations|Genre) : /);
  }
  assert.deepEqual(await counts(), before);
  assert.equal((await request(2, {data: book})).status, 503);
@@ -62,6 +62,7 @@ try {
  assert.deepEqual(first.data.book, {id: first.data.book.id, ...book});
  assert.equal(second.data.book.isbn, null);
  assert.equal(second.data.book.info, null);
+ assert.equal(second.data.book.genre, null);
  const list = await request(1);
  assert.equal(list.status, 200);
  assert.deepEqual(list.data.books.slice(0, 2), [second.data.book, first.data.book]);

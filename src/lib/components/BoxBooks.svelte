@@ -3,7 +3,7 @@
  import Plus from 'phosphor-svelte/lib/PlusIcon';
  import {tick} from 'svelte';
 
- let {boxId}: {boxId: string} = $props();
+ let {boxId,onDeposited}: {boxId: string;onDeposited:()=>void} = $props();
  const endpoint = $derived('/api/boxes/' + encodeURIComponent(boxId.replace(/^pg:/, '')) + '/books');
  let books = $state<BoxBook[]>([]);
  let loading = $state(true), listError = $state(''), retry = $state(0);
@@ -52,6 +52,7 @@
    confirmation = 'Livre ajouté à cette boîte.';
    open = false;
    retry++;
+   onDeposited();
   } catch {
    depositError = 'Impossible de confirmer le dépôt. Rechargez la fiche avant de réessayer.';
   } finally {
@@ -103,6 +104,7 @@
      <li>
       <strong>{book.title}</strong>
       {#if book.author}<span>{book.author}</span>{/if}
+      {#if book.genre}<span>{book.genre}</span>{/if}
       {#if book.isbn}<span>ISBN {book.isbn}</span>{/if}
       {#if book.info}<span>{book.info}</span>{/if}
      </li>
