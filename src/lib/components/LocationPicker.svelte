@@ -10,7 +10,7 @@
  let container:HTMLDivElement;
  let map=$state<GL.Map>();let marker:GL.Marker|undefined;
  let ready=$state(false),error=$state(''),locating=$state(false),locationError=$state('');
- let applyPosition:((position:Coordinates,fly?:boolean)=>void)|undefined;
+ let applyPosition:((position:Coordinates,fly?:boolean,notify?:boolean)=>void)|undefined;
  function locate(){
   if(!navigator.geolocation){locationError='La géolocalisation est indisponible. Choisissez le point sur la carte.';return;}
   locating=true;locationError='';
@@ -28,17 +28,17 @@
    m.addControl(new gl.NavigationControl({showCompass:false}),'top-right');
    const instance=m;
    const update=(position:Coordinates)=>{value=position;onChange?.(position);};
-   applyPosition=(position,fly=false)=>{
+   applyPosition=(position,fly=false,notify=true)=>{
     if(disposed)return;
     if(!marker){
      marker=new gl.Marker({color:'#F2B694',draggable:true}).setLngLat([position.longitude,position.latitude]).addTo(instance);
      marker.getElement().setAttribute('aria-label','Emplacement de la boîte, déplaçable avec les flèches du clavier');
      marker.on('dragend',()=>{const p=marker!.getLngLat();update({latitude:p.lat,longitude:((p.lng+180)%360+360)%360-180});});
     }else marker.setLngLat([position.longitude,position.latitude]);
-    update(position);
+    if(notify)update(position);
     if(fly)instance.easeTo({center:[position.longitude,position.latitude],zoom:Math.max(instance.getZoom(),16),duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:400});
    };
-   if(initial)applyPosition(initial);
+   if(initial)applyPosition(initial,false,false);
    instance.on('click',event=>applyPosition?.({latitude:event.lngLat.lat,longitude:((event.lngLat.lng+180)%360+360)%360-180}));
    instance.on('style.load',()=>{ready=true;error='';});
    instance.on('error',()=>{if(!instance.isStyleLoaded())error='Le fond de carte ne se charge pas. Vous pouvez saisir les coordonnées ci-dessous.';});
@@ -48,7 +48,7 @@
   }catch{if(!disposed)error='La carte est indisponible. Saisissez les coordonnées ci-dessous.';}})();
   return()=>{disposed=true;applyPosition=undefined;resize?.disconnect();theme?.disconnect();marker?.remove();marker=undefined;m?.remove();};
  });
- $effect(()=>{const position=value;if(map&&!position){marker?.remove();marker=undefined;}if(map&&position)untrack(()=>{if(!marker||Math.abs(marker.getLngLat().lat-position.latitude)>1e-9||Math.abs(marker.getLngLat().lng-position.longitude)>1e-9)applyPosition?.(position);});});
+ $effect(()=>{const position=value;if(map&&!position){marker?.remove();marker=undefined;}if(map&&position)untrack(()=>{if(!marker||Math.abs(marker.getLngLat().lat-position.latitude)>1e-9||Math.abs(marker.getLngLat().lng-position.longitude)>1e-9)applyPosition?.(position,false,false);});});
 </script>
 <div class="location-picker">
  <div class="picker-map" bind:this={container}></div>
