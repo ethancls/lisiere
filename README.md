@@ -95,3 +95,11 @@ Inspection en lecture seule du schéma bdd_clap, novembre 2026 :
 - ouvrages, exemplaires, livre_position et mouvements sont actuellement vides. Ils permettent des évolutions de catalogue et de suivi, sans contenu à afficher pour l'instant.
 
 La clé mouvements.id_uti est désormais rattachée à bdd_clap.utilisateurs par postgres/003_mouvements_fk.sql, et non plus à public.utilisateurs.
+
+### Déposer un livre
+
+Depuis la fiche d’une boîte, une personne connectée peut déposer un livre en renseignant son titre et son auteur, avec un ISBN et des informations facultatifs. La fiche se recharge après confirmation et affiche les exemplaires actuellement liés à cette boîte par `livre_position`.
+
+Chaque dépôt crée un ouvrage et un exemplaire distincts, puis enregistre la position et un mouvement `Depot` associé au compte connecté. Les quatre écritures partagent une transaction ; aucune migration n’est nécessaire.
+
+Pour vérifier le dépôt sans toucher aux données réelles, créer une base PostgreSQL/PostGIS jetable nommée `clap_books_test` sur `127.0.0.1`. Y charger `tests/books-fixture.sql`, `postgres/001_auth.sql` et `postgres/002_profile.sql` dans cet ordre, puis démarrer l’application sur `127.0.0.1` avec une configuration TLS de test pointant vers cette base. Exécuter `node --env-file=CHEMIN_ENV_TEST tests/books-integration.mjs` avec le même environnement. La deuxième boîte de la fixture force une erreur au dernier insert pour vérifier le rollback.
