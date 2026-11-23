@@ -54,7 +54,7 @@ Pendant la transition, les formulaires et Better Auth acceptent les deux origine
 - `npm run check` : Svelte et TypeScript.
 - `npm run build` : production Node.js.
 - `npm run test:auth` : avec le serveur de développement démarré, teste PostgreSQL, inscription/connexion, réinitialisation, révocation, ajout de boîte, limites des champs, référence unique, coordonnées et rechargement. Crée puis supprime uniquement ses comptes/boîtes temporaires.
-- `npm run db:migrate` : migration SQL additive d'authentification (`postgres/001_auth.sql`), dans une transaction. Aucun `push` automatique du schéma métier.
+- `npm run db:migrate` : rejoue les migrations SQL versionnées dans une transaction. Aucun `push` automatique du schéma métier.
 
 Les déclarations Drizzle sont dans `src/lib/server/postgres/schema.ts`. Toute évolution du schéma existant doit passer par une migration SQL relue.
 
@@ -66,7 +66,9 @@ Le système visuel est documenté dans `docs/design-system.md`, avec les retouch
 
 ## Chargement progressif
 
-La page serveur renvoie uniquement le profil connecté. Les boîtes viennent de `/api/boxes` : `mode=table` (pagination, tri et recherche serveur) ou `mode=map` (bornes `west`, `east`, `south`, `north`). L’index GiST existant sur `geom` est utilisé pour les vues locales. Le compte et les résultats partagent un snapshot PostgreSQL en lecture seule. Les paramètres sont validés et les appels exigent une session.
+La page serveur renvoie uniquement le profil connecté. Les boîtes viennent de `/api/boxes` : `mode=table` (pagination, tri et recherche serveur) ou `mode=map`. Sans filtres, la carte utilise ses bornes (`west`, `east`, `south`, `north`) et l’index GiST existant sur `geom` pour les vues locales. Le compte et les résultats partagent un snapshot PostgreSQL en lecture seule. Les paramètres sont validés et les appels exigent une session.
+
+Les filtres de la carte se cumulent : commune, département, présence de livres, titre et genre. La carte cadre les résultats dans tout le catalogue, y compris hors de la zone initiale. Jusqu’à 1 000 boîtes sont affichées dans la liste et sur la carte ; le nombre total de correspondances reste indiqué. Le titre et le genre sont des fragments de texte (casse ignorée, accents conservés) et doivent correspondre au même exemplaire actuellement rattaché à la boîte par `livre_position`. Réinitialiser rétablit l’exploration par cadrage. Le tableau garde sa recherche de boîtes indépendante.
 
 La recherche et les mouvements sont temporisés de 200 ms ; les requêtes dépassées sont annulées côté navigateur. Les erreurs proposent un nouvel essai. Les chargements affichent des placeholders Skeleton UI adaptés aux listes, tableaux, compteurs, communes et carte, avec respect de la réduction des animations. La carte importe MapLibre à la demande et utilise une source GeoJSON avec clusters, sans créer de marqueur HTML par boîte. La position est conservée entre les vues. Une zone très étendue est plafonnée à 1 000 points, avec une mention invitant à zoomer ; la liste rend au maximum 100 lieux.
 
@@ -95,3 +97,11 @@ Inspection en lecture seule du schéma bdd_clap, novembre 2026 :
 - ouvrages, exemplaires, livre_position et mouvements sont actuellement vides. Ils permettent des évolutions de catalogue et de suivi, sans contenu à afficher pour l'instant.
 
 La clé mouvements.id_uti est désormais rattachée à bdd_clap.utilisateurs par postgres/003_mouvements_fk.sql, et non plus à public.utilisateurs.
+
+### Déposer un livre
+
+Depuis la fiche d’une boîte, une personne connectée peut déposer un livre en renseignant son titre et son auteur, avec un genre libre, un ISBN et des informations facultatifs. La fiche se recharge après confirmation et affiche les exemplaires actuellement liés à cette boîte par `livre_position`.
+
+Chaque dépôt crée un ouvrage et un exemplaire distincts, puis enregistre la position et un mouvement `Depot` associé au compte connecté. Les quatre écritures partagent une transaction. La migration `005_genre_ouvrage.sql` ajoute uniquement la colonne nullable `bdd_clap.ouvrages.genre` (80 caractères), sans modifier les ouvrages existants ; elle doit être appliquée avant de démarrer cette version.
+
+Pour vérifier le dépôt et les filtres sans toucher aux données réelles, créer une base PostgreSQL/PostGIS jetable nommée `clap_books_test` sur `127.0.0.1`. Y charger `tests/books-fixture.sql`, puis exécuter `node --env-file=CHEMIN_ENV_TEST scripts/migrate-postgres.ts` avec une configuration TLS de test pointant vers cette base. Démarrer l’application sur `127.0.0.1` et exécuter `node --env-file=CHEMIN_ENV_TEST tests/books-integration.mjs` et `node --env-file=CHEMIN_ENV_TEST tests/map-filters-integration.mjs` avec le même environnement. La deuxième boîte de la fixture force une erreur au dernier insert pour vérifier le rollback.

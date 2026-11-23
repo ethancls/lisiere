@@ -1,10 +1,26 @@
-import {and,asc,desc,eq,ilike,or,sql,type SQL} from 'drizzle-orm';
+import {and,asc,desc,eq,ilike,isNotNull,or,sql,type SQL} from 'drizzle-orm';
 import {postgres} from './index';import {boites,communes,departments} from './schema';
-import type {Bounds,BoxPage} from '#lib/types/boxes.ts';
-export interface BoxQuery {mode:'map'|'table';search:string;page:number;pageSize:number;sort:'name'|'city'|'address';ascending:boolean;bounds?:Bounds}
+import type {Bounds,BoxFilters,BoxPage} from '#lib/types/boxes.ts';
+export interface BoxQuery {mode:'map'|'table';search:string;page:number;pageSize:number;sort:'name'|'city'|'address';ascending:boolean;bounds?:Bounds;filters:BoxFilters}
+const containsPattern=(text:string)=>'%'+text.replace(/[\\%_]/g,'\\$&')+'%';
 export async function queryBoxes(query:BoxQuery):Promise<BoxPage>{
  const clauses:SQL[]=[];
- if(query.search){const pattern='%'+query.search.replace(/[\\%_]/g,'\\$&')+'%';clauses.push(or(ilike(boites.refSource,pattern),ilike(boites.address,pattern),ilike(communes.name,pattern),ilike(communes.postalCode,pattern))!);}
+ if(query.mode==='map')clauses.push(isNotNull(boites.geom));
+ if(query.search){const pattern=containsPattern(query.search);clauses.push(or(ilike(boites.refSource,pattern),ilike(boites.address,pattern),ilike(communes.name,pattern),ilike(communes.postalCode,pattern))!);}
+ const {commune,department,books,title,genre}=query.filters;
+ if(commune!==null)clauses.push(eq(boites.communeId,commune));
+ if(department!==null)clauses.push(eq(communes.departmentId,department));
+ if(books==='without'&&(title||genre))clauses.push(sql`false`);
+ else if(books!=='all'||title||genre){
+  const present=sql`EXISTS (
+   SELECT 1 FROM bdd_clap.livre_position p
+   JOIN bdd_clap.exemplaires e USING (id_exemplaire)
+   JOIN bdd_clap.ouvrages o USING (id_ouvrage)
+   WHERE p.id_boite = ${boites.id}
+   ${title?sql`AND o.titre ILIKE ${containsPattern(title)}`:sql.empty()}
+   ${genre?sql`AND o.genre ILIKE ${containsPattern(genre)}`:sql.empty()})`;
+  clauses.push(books==='without'?sql`NOT ${present}`:present);
+ }
  if(query.bounds){
   const {west,east,south,north}=query.bounds;
   const inEnvelope=(w:number,e:number)=>{

@@ -3,8 +3,8 @@
  import {onMount,tick,untrack} from 'svelte';import type * as GL from 'maplibre-gl';
  import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';import 'maplibre-gl/dist/maplibre-gl.css';
  import type {Box,Bounds} from '#lib/types/boxes.ts';
- let {boxes,active=null,onSelect,onBounds,focusRequest=0,panel,camera=$bindable({center:[2.35,48.862] as [number,number],zoom:12.4})}: {
-  boxes:Box[];active?:Box|null;onSelect?:(box:Box)=>void;onBounds?:(bounds:Bounds)=>void;focusRequest?:number;panel?:HTMLElement;camera?:{center:[number,number];zoom:number}
+ let {boxes,active=null,onSelect,onBounds,focusRequest=0,fitRequest=0,panel,camera=$bindable({center:[2.35,48.862] as [number,number],zoom:12.4})}: {
+  boxes:Box[];active?:Box|null;onSelect?:(box:Box)=>void;onBounds?:(bounds:Bounds)=>void;focusRequest?:number;fitRequest?:number;panel?:HTMLElement;camera?:{center:[number,number];zoom:number}
  }=$props();
  let container:HTMLDivElement;let map=$state<GL.Map>();let ready=$state(false),error=$state('');
  let MarkerConstructor:typeof GL.Marker|undefined,activeMarker:GL.Marker|undefined;
@@ -65,6 +65,19 @@
   if(!instance||!target)return;
   let cancelled=false;
   void tick().then(()=>{if(cancelled)return;untrack(()=>{const inset=padding();instance.easeTo({center:[target.longitude,target.latitude],zoom:Math.max(instance.getZoom(),15),padding:{left:0,right:0,top:0,bottom:0},offset:[(inset.left-inset.right)/2,(inset.top-inset.bottom)/2],duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:450});});});
+  return()=>{cancelled=true;};
+ });
+ $effect(()=>{
+  const instance=map,request=fitRequest;
+  if(!instance||!request)return;
+  let cancelled=false;
+  void tick().then(()=>{
+   if(cancelled||!boxes.length)return;
+   const lons=boxes.map(box=>box.longitude),lats=boxes.map(box=>box.latitude);
+   instance.fitBounds([Math.min(...lons),Math.min(...lats),Math.max(...lons),Math.max(...lats)],{
+    padding:padding(),maxZoom:14,duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:450
+   });
+  });
   return()=>{cancelled=true;};
  });
 </script>
