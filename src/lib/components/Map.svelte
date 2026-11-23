@@ -3,9 +3,8 @@
  import {onMount,tick,untrack} from 'svelte';import type * as GL from 'maplibre-gl';
  import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';import 'maplibre-gl/dist/maplibre-gl.css';
  import type {Box,Bounds} from '#lib/types/boxes.ts';
- import type {Place} from '#lib/types/places.ts';
- let {boxes,active=null,onSelect,onBounds,focusRequest=0,placeTarget=null,onPlaceFocused,panel,camera=$bindable({center:[2.35,48.862] as [number,number],zoom:12.4})}: {
-  boxes:Box[];active?:Box|null;onSelect?:(box:Box)=>void;onBounds?:(bounds:Bounds)=>void;focusRequest?:number;placeTarget?:Place|null;onPlaceFocused?:()=>void;panel?:HTMLElement;camera?:{center:[number,number];zoom:number}
+ let {boxes,active=null,onSelect,onBounds,focusRequest=0,panel,camera=$bindable({center:[2.35,48.862] as [number,number],zoom:12.4})}: {
+  boxes:Box[];active?:Box|null;onSelect?:(box:Box)=>void;onBounds?:(bounds:Bounds)=>void;focusRequest?:number;panel?:HTMLElement;camera?:{center:[number,number];zoom:number}
  }=$props();
  let container:HTMLDivElement;let map=$state<GL.Map>();let ready=$state(false),error=$state('');
  let MarkerConstructor:typeof GL.Marker|undefined,activeMarker:GL.Marker|undefined;
@@ -62,14 +61,10 @@
   }else{activeMarker?.remove();activeMarker=undefined;}
  });
  $effect(()=>{
-  const instance=map,target=active,place=placeTarget,request=focusRequest;void request;
-  if(!instance||(!target&&!place))return;
+  const instance=map,target=active,request=focusRequest;void request;
+  if(!instance||!target)return;
   let cancelled=false;
-  void tick().then(()=>{if(cancelled)return;untrack(()=>{
-   const inset=padding();
-   instance.easeTo({center:place?place.center:[target!.longitude,target!.latitude],zoom:place?(place.kind==='municipality'?12:16):Math.max(instance.getZoom(),15),padding:{left:0,right:0,top:0,bottom:0},offset:[(inset.left-inset.right)/2,(inset.top-inset.bottom)/2],duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:450});
-   if(place)onPlaceFocused?.();
-  });});
+  void tick().then(()=>{if(cancelled)return;untrack(()=>{const inset=padding();instance.easeTo({center:[target.longitude,target.latitude],zoom:Math.max(instance.getZoom(),15),padding:{left:0,right:0,top:0,bottom:0},offset:[(inset.left-inset.right)/2,(inset.top-inset.bottom)/2],duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:450});});});
   return()=>{cancelled=true;};
  });
 </script>

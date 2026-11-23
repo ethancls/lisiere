@@ -4,12 +4,12 @@
  import type {Snippet} from 'svelte';
  import Logo from './Logo.svelte';import ThemeToggle from './ThemeToggle.svelte';import UserAvatar from './UserAvatar.svelte';
  import Search from 'phosphor-svelte/lib/MagnifyingGlassIcon';import X from 'phosphor-svelte/lib/XIcon';import Gear from 'phosphor-svelte/lib/GearIcon';import LogOut from 'phosphor-svelte/lib/SignOutIcon';
- let {user,search=$bindable(''),onSearch,showSearch=true,settings=false,actions,placeSearch}:{user:{id:string;name:string;firstName?:string|null;lastName?:string|null};search?:string;onSearch?:()=>void;showSearch?:boolean;settings?:boolean;actions?:Snippet;placeSearch?:Snippet}=$props();
+ let {user,search=$bindable(''),onSearch,showSearch=true,settings=false,actions}:{user:{id:string;name:string;firstName?:string|null;lastName?:string|null};search?:string;onSearch?:()=>void;showSearch?:boolean;settings?:boolean;actions?:Snippet}=$props();
  let logoutForm:HTMLFormElement;
 </script>
 <div class="app-header" class:settings-header={!showSearch}>
  <a href="/" aria-label="CLAP, accueil" class="header-brand"><Logo/></a>
- {#if showSearch}<div class="search-slot">{#if placeSearch}{@render placeSearch()}{:else}<div class="header-search"><Search size={18}/><input class="input" aria-label="Rechercher une boîte" bind:value={search} oninput={()=>onSearch?.()} placeholder="Lieu, ville ou code postal"/>{#if search}<button class="btn clear-search" type="button" aria-label="Effacer la recherche" onclick={()=>{search='';onSearch?.();}}><X size={16}/></button>{/if}</div>{/if}</div>{/if}
+ {#if showSearch}<div class="header-search"><Search size={18}/><input class="input" aria-label="Rechercher une boîte" bind:value={search} oninput={()=>onSearch?.()} placeholder="Lieu, ville ou code postal"/>{#if search}<button class="btn clear-search" type="button" aria-label="Effacer la recherche" onclick={()=>{search='';onSearch?.();}}><X size={16}/></button>{/if}</div>{/if}
  <div class="header-actions">{#if actions}<div class="header-primary">{@render actions()}</div>{/if}<ThemeToggle inline/><Menu positioning={{placement:'bottom-end',gutter:8}} onSelect={({value})=>{if(value==='settings')void goto('/settings');if(value==='logout')logoutForm.requestSubmit();}}>
  <Menu.Trigger class="btn profile-trigger" aria-label="Menu du compte" title="Compte"><UserAvatar {user}/></Menu.Trigger>
  <Portal><Menu.Positioner class="account-menu-positioner"><Menu.Content class="card account-menu" aria-label="Compte">
@@ -33,8 +33,6 @@
  :global(.account-menu-item:hover svg),:global(.account-menu-item[data-highlighted] svg){color:var(--accent)}
  :global(.account-menu-logout:hover svg),:global(.account-menu-logout[data-highlighted] svg){color:var(--negative)}
  .clear-search:hover{background:transparent;color:var(--accent)}.clear-search :global(svg){width:16px;height:16px}
- .search-slot{min-width:0}
- @media(max-width:760px){.search-slot{grid-column:1/-1;grid-row:2}}
  .app-header :focus-visible{outline:2px solid var(--accent);outline-offset:3px}.app-header .header-search .input:focus-visible{outline:none}
  @media(max-width:1000px){.app-header{grid-template-columns:140px minmax(120px,1fr) max-content;padding:16px;gap:16px}.settings-header{grid-template-columns:140px max-content}.header-brand{width:140px}.header-actions{gap:4px}}
  @media(max-width:760px){.app-header{grid-template-columns:1fr max-content;gap:12px;padding:16px 12px}.header-search{grid-column:1/-1;grid-row:2}.header-actions{grid-column:2;grid-row:1}.header-brand{width:124px}.header-search .input{font-size:16px}.header-primary{grid-column:1/-1}:global(.header-primary .primary){width:40px;min-width:40px;padding:0;font-size:0;gap:0}:global(.header-primary .primary svg){width:20px;height:20px}.header-actions{gap:0}}

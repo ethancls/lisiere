@@ -4,14 +4,11 @@
  import {onMount} from 'svelte';
  import Map from '#lib/components/Map.svelte';import AddBox from '#lib/components/AddBox.svelte';
  import PageSizeSelect from '#lib/components/PageSizeSelect.svelte';
- import PlaceSearch from '#lib/components/PlaceSearch.svelte';
- import type {Place} from '#lib/types/places.ts';
  import CaretLeft from 'phosphor-svelte/lib/CaretLeftIcon';import CaretRight from 'phosphor-svelte/lib/CaretRightIcon';
  import type {Box,BoxPage,Bounds} from '#lib/types/boxes.ts';
  import MapPin from 'phosphor-svelte/lib/MapPinIcon';import Table from 'phosphor-svelte/lib/TableIcon';import X from 'phosphor-svelte/lib/XIcon';import ArrowUpRight from 'phosphor-svelte/lib/ArrowUpRightIcon';import ArrowsDownUp from 'phosphor-svelte/lib/ArrowsDownUpIcon';
  let {data,form}=$props();let mounted=$state(false),view=$state('map'),search=$state(''),selectedBox=$state<Box|null>(null),focusRequest=$state(0);
  let bounds=$state<Bounds>();let resultsPanel=$state<HTMLElement>();let camera=$state({center:[2.35,48.862] as [number,number],zoom:12.4});
- let placeTarget=$state<Place|null>(null);
  let sort=$state<'name'|'city'|'address'>('name'),ascending=$state(true),page=$state(1),pageSize=$state(25),refresh=$state(0);
  let mapData=$state<BoxPage>({items:[],total:0,totalAll:0,page:1,pages:1,pageSize:1000,truncated:false});
  let tableData=$state<BoxPage>({items:[],total:0,totalAll:0,page:1,pages:1,pageSize:25,truncated:false});
@@ -21,12 +18,11 @@
  const current=$derived(selectedBox);
  const visibleBoxes=$derived(mapData.items.slice(0,100));
  function order(key:'name'|'city'|'address'){if(sort===key)ascending=!ascending;else{sort=key;ascending=true;}page=1;}
- function locate(box:Box){placeTarget=null;selectedBox=box;focusRequest++;view='map';}
- function locatePlace(place:Place){selectedBox=null;placeTarget=place;focusRequest++;}
+ function locate(box:Box){selectedBox=box;focusRequest++;view='map';}
  onMount(()=>{mounted=true;});
  $effect(()=>{
   if(!mounted)return;
-  const mode=view,q=mode==='table'?search.trim():'',region=mode==='map'?bounds:undefined,requestedPage=page,size=pageSize,sortKey=sort,direction=ascending?'asc':'desc',revision=refresh;
+  const mode=view,q=search.trim(),region=bounds,requestedPage=page,size=pageSize,sortKey=sort,direction=ascending?'asc':'desc',revision=refresh;
   void revision;
   if(mode==='map'&&!region){loading=true;return;}
   const controller=new AbortController();loading=true;loadError='';
@@ -47,13 +43,12 @@
 </script>
 <svelte:head><title>CLAP | {view==='map'?'Carte':'Tableau'}</title></svelte:head>
 <main class="home">
- {#snippet placeSearch()}<PlaceSearch onSelect={locatePlace}/>{/snippet}
- <AppHeader user={data.user} bind:search onSearch={()=>page=1} placeSearch={view==='map'?placeSearch:undefined}>{#snippet actions()}<AddBox center={camera.center} onSaved={box=>{search='';refresh++;locate(box);}}/>{/snippet}</AppHeader>
+ <AppHeader user={data.user} bind:search onSearch={()=>page=1}>{#snippet actions()}<AddBox center={camera.center} onSaved={box=>{search='';refresh++;locate(box);}}/>{/snippet}</AppHeader>
  <div class="home-toolbar"><div class="home-context"><h1>Boîtes à livres</h1><span>{#if loading}<LoadingSkeleton variant="count" label="Chargement du nombre de lieux"/>{:else}{number.format(active.items.length)} lieu{active.items.length!==1?'x':''} affiché{active.items.length!==1?'s':''} sur {number.format(active.totalAll)}{/if}</span></div><div class="view-control" aria-label="Mode d’affichage"><button class:chosen={view==='map'} aria-pressed={view==='map'} onclick={()=>view='map'}><MapPin size={18}/>Carte</button><button class:chosen={view==='table'} aria-pressed={view==='table'} onclick={()=>view='table'}><Table size={18}/>Tableau</button></div></div>
  {#if form?.success}<div class="home-success" role="status">Boîte ajoutée.</div>{/if}
  <div class="home-content" class:table-view={view==='table'}>
  {#if view==='map'}
-  <Map boxes={mapData.items} active={current} onSelect={locate} {focusRequest} {placeTarget} panel={resultsPanel} bind:camera onBounds={value=>bounds=value} onPlaceFocused={()=>placeTarget=null}/>
+  <Map boxes={mapData.items} active={current} onSelect={locate} {focusRequest} panel={resultsPanel} bind:camera onBounds={value=>bounds=value}/>
   <section class="map-results" class:has-selection={!!current} aria-label="Résultats" bind:this={resultsPanel}><div class="results-heading"><h2>Dans cette zone</h2><span aria-live="polite">{#if loading}<LoadingSkeleton variant="count" label="Chargement des lieux"/>{:else}{number.format(mapData.total)}{/if}</span></div><div class="results-scroll" aria-busy={loading}>{#if loading}<div aria-hidden="true">{#each Array(5) as _}<LoadingSkeleton variant="list" announce={false}/>{/each}</div>{:else if loadError}<div class="empty-results" role="alert">{loadError} <button onclick={()=>refresh++}>Réessayer</button></div>{:else}{#each visibleBoxes as b}<button class="result-row" class:chosen={current?.id===b.id} aria-pressed={current?.id===b.id} onclick={()=>locate(b)}><span class="result-pin"><MapPin size={19}/></span><span class="result-text"><strong>{b.name}</strong><span>{b.address} · {b.city}</span></span><ArrowUpRight size={15}/></button>{:else}<p class="empty-results">Aucune boîte dans cette zone. Déplacez la carte ou élargissez la recherche.</p>{/each}{#if mapData.items.length>100}<p class="empty-results">100 lieux affichés dans la liste. Zoomez pour préciser la zone.</p>{/if}{#if mapData.truncated}<p class="empty-results">Zone étendue : les points sont limités à 1 000. Zoomez pour tous les voir.</p>{/if}{/if}</div>
   {#if current}<div class="result-detail"><div><strong>{current.name}</strong><button aria-label="Fermer la fiche" onclick={()=>selectedBox=null}><X size={16}/></button></div>{#if current.description}<p>{current.description}</p>{/if}<p class="detail-address">{current.address}<br/>{current.postalCode} {current.city}</p>{#if current.department}<p class="detail-department">{current.department}{current.departmentCode?' · '+current.departmentCode:''}</p>{/if}<button class="btn detail-recenter" onclick={()=>locate(current)}><MapPin size={16}/>Recentrer sur la boîte</button><a target="_blank" rel="noopener noreferrer" href={'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(current.latitude+','+current.longitude)}>Ouvrir avec Google Maps <ArrowUpRight size={16}/></a></div>{/if}
   </section>
