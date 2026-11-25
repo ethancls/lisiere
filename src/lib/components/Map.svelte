@@ -16,6 +16,7 @@
    :{left:24,right:24,top:32,bottom:Math.min(rect.height*.65,rect.bottom-overlay.top+24)};
  };
  const style=()=>`https://tiles.openfreemap.org/styles/${document.documentElement.dataset.theme==='light'?'positron':'dark'}`;
+ const boxFill='#CBC0EE';
  const geojson=()=>({type:'FeatureCollection' as const,features:boxes.filter(b=>b.id!==active?.id).map(b=>({type:'Feature' as const,geometry:{type:'Point' as const,coordinates:[b.longitude,b.latitude]},properties:{id:b.id}}))});
  onMount(()=>{
   let cancelled=false;let m:GL.Map|undefined,observer:MutationObserver|undefined,resizeObserver:ResizeObserver|undefined;
@@ -31,10 +32,11 @@
      onBounds?.({west:world?-180:wrap(b.getWest()),east:world?180:wrap(b.getEast()),south:Math.max(-85.051128,b.getSouth()),north:Math.min(85.051128,b.getNorth())});
     };
     instance.on('moveend',publish);instance.on('style.load',()=>{
+     const boxStroke=document.documentElement.dataset.theme==='light'?'#50426C':'#8271A0';
      instance.addSource('boxes',{type:'geojson',data:geojson(),cluster:true,clusterRadius:42,clusterMaxZoom:13});
-     instance.addLayer({id:'box-clusters',type:'circle',source:'boxes',filter:['has','point_count'],paint:{'circle-color':'#9CD9C8','circle-radius':['step',['get','point_count'],16,100,21],'circle-stroke-width':1.5,'circle-stroke-color':'#182929'}});
+     instance.addLayer({id:'box-clusters',type:'circle',source:'boxes',filter:['has','point_count'],paint:{'circle-color':boxFill,'circle-radius':['step',['get','point_count'],16,100,21],'circle-stroke-width':1.5,'circle-stroke-color':boxStroke}});
      instance.addLayer({id:'box-cluster-count',type:'symbol',source:'boxes',filter:['has','point_count'],layout:{'text-field':['get','point_count_abbreviated'],'text-font':['Noto Sans Regular'],'text-size':12},paint:{'text-color':'#182929'}});
-     instance.addLayer({id:'box-points',type:'circle',source:'boxes',filter:['!', ['has','point_count']],paint:{'circle-color':'#9CD9C8','circle-radius':6,'circle-stroke-width':1.5,'circle-stroke-color':'#182929'}});
+     instance.addLayer({id:'box-points',type:'circle',source:'boxes',filter:['!', ['has','point_count']],paint:{'circle-color':boxFill,'circle-radius':6,'circle-stroke-width':1.5,'circle-stroke-color':boxStroke}});
      ready=true;error='';
     });
     instance.on('click','box-clusters',async event=>{
